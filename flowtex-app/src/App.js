@@ -6,7 +6,7 @@ import 'katex/dist/katex.min.css';
 function App() {
   return (
     <div className="App">
-      <h1>FlowTeX</h1>
+      <h1></h1>
       <Editor />
     </div>
   );

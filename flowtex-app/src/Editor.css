@@ -72,3 +72,149 @@
 .actions button:hover {
   background: #1e2b36;
 }
+
+.katex-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+.slash-popup {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+}
+.slash-item:hover {
+  background: #f0f0f0;
+}
+
+.toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 8px;
+  border-bottom: 1px solid #ddd;
+  flex-wrap: wrap;
+}
+.toolbar button,
+.toolbar select {
+  padding: 4px 8px;
+  cursor: pointer;
+  background: white;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 14px;
+}
+.toolbar button.active {
+  background: #e0e0e0;
+}
+
+/* Full editor background – light gray like Google Docs */
+.editor-container {
+  background-color: #f1f3f4;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 20px;
+  padding-bottom: 50px;
+}
+
+
+.toolbar {
+  width: 100%;
+  max-width: 8.5in;   
+  margin-bottom: 20px;
+}
+
+.page-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.page {
+  width: 8.5in;         
+  min-height: 11in;      
+  background: white;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  padding: 1in;          
+  margin: 0 auto;
+  box-sizing: border-box;
+  font-family: 'Times New Roman', serif; 
+  font-size: 12pt;
+  line-height: 1.5;
+}
+
+.page .ProseMirror {
+  outline: none;
+  min-height: 100%;
+  background: transparent;
+}
+
+.editor-container .ProseMirror {
+  padding: 0;
+  margin: 0;
+}
+
+.toolbar button.active {
+  background-color: #e0e0e0;
+  border-color: #b0b0b0;
+  color: #202124;
+}
+
+.toolbar button:hover {
+  background-color: #e8eaed;
+}
+
+.toolbar button:active {
+  background-color: #d0d4d9;
+}
+
+.source-modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.source-modal {
+  background: white;
+  border-radius: 8px;
+  width: 80%;
+  max-width: 700px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+}
+
+.source-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.source-modal-header h3 {
+  margin: 0;
+}
+
+.source-code {
+  flex: 1;
+  overflow: auto;
+  background: #f5f5f5;
+  padding: 15px;
+  border-radius: 4px;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.source-modal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 15px;
+  justify-content: flex-end;
+}

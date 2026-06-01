@@ -1,6 +1,5 @@
 import { Node } from '@tiptap/core';
 import katex from 'katex';
-import 'katex/dist/katex.min.css';
 
 export const KatexExtension = Node.create({
   name: 'katex',
@@ -11,6 +10,11 @@ export const KatexExtension = Node.create({
   addAttributes() {
     return {
       latex: { default: '' },
+      display: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-display') === 'true',
+        renderHTML: attributes => ({ 'data-display': attributes.display }),
+      },
     };
   },
 
@@ -23,29 +27,49 @@ export const KatexExtension = Node.create({
     ];
   },
 
+  // NEW: tell the serializer how to output this node as HTML
+  renderHTML({ node, HTMLAttributes }) {
+    const latex = node.attrs.latex;
+    const displayMode = node.attrs.display;
+    try {
+      const html = katex.renderToString(latex, {
+        throwOnError: false,
+        displayMode,
+      });
+      return ['span', { 'data-latex': latex, ...HTMLAttributes }, { dangerouslySetInnerHTML: { __html: html } }];
+    } catch (e) {
+      return ['span', { 'data-latex': latex, ...HTMLAttributes }, latex];
+    }
+  },
+
   addNodeView() {
-    return ({ node, editor, getPos }) => {
+    return ({ node }) => {
       const dom = document.createElement('span');
       dom.setAttribute('data-latex', node.attrs.latex);
-      dom.classList.add('katex-inline');
-      
-      const update = () => {
+      dom.classList.add(node.attrs.display ? 'katex-display' : 'katex-inline');
+
+      const render = (attrs) => {
         try {
-          const html = katex.renderToString(node.attrs.latex, { throwOnError: false });
+          const html = katex.renderToString(attrs.latex, {
+            throwOnError: false,
+            displayMode: attrs.display,
+          });
           dom.innerHTML = html;
         } catch (e) {
-          dom.innerHTML = `<span style="color:red;">${node.attrs.latex}</span>`;
+          dom.innerHTML = `<span style="color:red;">${attrs.latex}</span>`;
         }
       };
-      
-      update();
-      
+
+      render(node.attrs);
+
       return {
         dom,
         update: (updatedNode) => {
           if (updatedNode.type !== node.type) return false;
-          node.attrs.latex = updatedNode.attrs.latex;
-          update();
+          node.attrs = { ...updatedNode.attrs };
+          dom.setAttribute('data-latex', node.attrs.latex);
+          dom.className = node.attrs.display ? 'katex-display' : 'katex-inline';
+          render(node.attrs);
           return true;
         },
       };

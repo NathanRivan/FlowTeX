@@ -1,95 +1,147 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
+import { Underline } from '@tiptap/extension-underline';
+import { TextAlign } from '@tiptap/extension-text-align';
+import { TextStyle } from '@tiptap/extension-text-style';
+import { Highlight } from '@tiptap/extension-highlight';
+import { Strike } from '@tiptap/extension-strike';
+import { FontSize } from 'tiptap-extension-font-size';
+import { FontFamily } from '@tiptap/extension-font-family';
 import { KatexExtension } from './KatexExtension';
-import 'katex/dist/katex.min.css';
+import { KatexDisplayExtension } from './KatexDisplayExtension';
+import { MathInputRules } from './MathInputRules';
+import { SlashCommands } from './SlashCommands';
+import { generateLaTeX } from './latexSerializer';
 import './Editor.css';
-import { Node as ProsemirrorNode } from 'prosemirror-model';
 
 const Editor = () => {
+  // ---- STATE ----
+  const [, setUpdate] = useState(0); // force re‑render on editor changes
+  const [showSource, setShowSource] = useState(false);
+  const [latexCode, setLatexCode] = useState('');
+
+  // ---- EDITOR CONFIG ----
   const editor = useEditor({
     extensions: [
       StarterKit,
+      Underline,
+      Strike,
+      Highlight.configure({ multicolor: true }),
+      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextStyle,
+      FontFamily.configure({
+        fontFamilies: [
+          { title: 'Latin Modern (LaTeX)', value: '"Latin Modern Roman", serif' },
+          { title: 'Serif', value: 'serif' },
+          { title: 'Sans-Serif', value: 'sans-serif' },
+          { title: 'Monospace', value: 'monospace' },
+          { title: 'Arial', value: 'Arial, sans-serif' },
+          { title: 'Times New Roman', value: '"Times New Roman", serif' },
+          { title: 'Courier New', value: '"Courier New", monospace' },
+        ],
+      }),
+      FontSize,
       KatexExtension,
+      KatexDisplayExtension,
+      MathInputRules,
+      SlashCommands,
     ],
-    content: '<p>Type $x^2$ to create math.</p>',
-    editorProps: {
-      handleKeyDown(view, event) {
-        if ((event.metaKey || event.ctrlKey) && event.key === 'm') {
-          event.preventDefault();
-          const { state, dispatch } = view;
-          const { from, to } = state.selection;
-          const selectedText = state.doc.textBetween(from, to, ' ');
-
-          if (selectedText) {
-            const mathText = `$${selectedText}$`;
-            const transaction = state.tr.insertText(mathText, from, to);
-            dispatch(transaction);
-          } else {
-            editor.commands.insertKatex('');
-          }
-          return true;
-        }
-        return false;
-      },
-    },
+    content: '<p></p>',
   });
 
-  // Input rule to convert $ ... $ into a math node
-  if (editor) {
-    // This is a simplified approach — we'll add a proper input rule later
-    // For now, we can manually handle it in the onUpdate event
-    editor.on('update', ({ transaction }) => {
-      const doc = editor.state.doc;
-      let modified = false;
-      const tr = editor.state.tr;
+  // ---- FORCE RE-RENDER ON TRANSACTION (for toolbar active states) ----
+  useEffect(() => {
+    if (!editor) return;
+    const handler = () => setUpdate(prev => prev + 1);
+    editor.on('transaction', handler);
+    return () => editor.off('transaction', handler);
+  }, [editor]);
 
-      doc.descendants((node, pos) => {
-        if (node.isText && node.text) {
-          const text = node.text;
-          const regex = /\$(.*?)\$/g;
-          let match;
-          while ((match = regex.exec(text)) !== null) {
-            const start = pos + match.index;
-            const end = start + match[0].length;
-            const latex = match[1].trim();
-            
-            // Delete the text node
-            tr.delete(start, end);
-            // Insert a math node
-            tr.insert(start, editor.schema.nodes.katex.create({ latex }));
-            modified = true;
-          }
-        }
-      });
-
-      if (modified) {
-        editor.view.dispatch(tr);
-      }
-    });
-  }
-
-  if (!editor) return <div>Loading...</div>;
-
-  const insertMath = () => {
-    const latex = prompt('Enter LaTeX:', 'x^2');
-    if (latex) editor.commands.insertKatex(latex);
+  // ---- HELPER ----
+  const handleShowSource = () => {
+    if (!editor) return;
+    const latex = generateLaTeX(editor);
+    setLatexCode(latex);
+    setShowSource(true);
   };
 
+  // ---- EARLY RETURN (editor not ready) ----
+  if (!editor) return <div>Loading…</div>;
+
+  // ---- RENDER ----
   return (
     <div className="editor-container">
+      {/* TOOLBAR */}
       <div className="toolbar">
-        <button onClick={() => editor.chain().focus().toggleBold().run()}>
-          Bold
-        </button>
-        <button onClick={insertMath}>
-          Insert Math
-        </button>
-        <span style={{ fontSize: '12px', color: '#666', marginLeft: 'auto' }}>
-          ⌘M to math | Type \m ... \m
-        </span>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'active' : ''}><strong>B</strong></button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'active' : ''}><em>I</em></button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} className={editor.isActive('underline') ? 'active' : ''}><u>U</u></button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} className={editor.isActive('strike') ? 'active' : ''}><s>S</s></button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleHighlight().run()} className={editor.isActive('highlight') ? 'active' : ''}>🖍️</button>
+
+        <select onChange={e => { const f = e.target.value; if(f) editor.chain().focus().setFontFamily(f).run(); else editor.chain().focus().unsetFontFamily().run(); }}>
+          <option value="">Font</option>
+          <option value='"Latin Modern Roman", serif'>Latin Modern (LaTeX)</option>
+          <option value='serif'>Serif</option>
+          <option value='sans-serif'>Sans-Serif</option>
+          <option value='monospace'>Monospace</option>
+          <option value='Arial, sans-serif'>Arial</option>
+          <option value='"Times New Roman", serif'>Times New Roman</option>
+          <option value='"Courier New", monospace'>Courier New</option>
+        </select>
+
+        <select onChange={e => { const s = e.target.value; if(s) editor.chain().focus().setFontSize(s).run(); else editor.chain().focus().unsetFontSize().run(); }}>
+          <option value="">Size</option>
+          <option value="12pt">12</option>
+          <option value="14pt">14</option>
+          <option value="16pt">16</option>
+          <option value="18pt">18</option>
+          <option value="20pt">20</option>
+          <option value="24pt">24</option>
+          <option value="30pt">30</option>
+        </select>
+
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()}>Left</button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()}>Center</button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('right').run()}>Right</button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('justify').run()}>Justify</button>
+
+        {/* LaTeX Source Toggle */}
+        <button onClick={handleShowSource}>LaTeX Source</button>
       </div>
-      <EditorContent editor={editor} />
+
+      {/* PAGE WRAPPER */}
+      <div className="page-wrapper">
+        <div className="page">
+          <EditorContent editor={editor} />
+        </div>
+      </div>
+
+      {/* SOURCE MODAL */}
+      {showSource && (
+        <div className="source-modal-overlay" onClick={() => setShowSource(false)}>
+          <div className="source-modal" onClick={e => e.stopPropagation()}>
+            <div className="source-modal-header">
+              <h3>Generated LaTeX</h3>
+              <button onClick={() => setShowSource(false)}>✕</button>
+            </div>
+            <pre className="source-code">{latexCode}</pre>
+            <div className="source-modal-actions">
+              <button onClick={() => navigator.clipboard.writeText(latexCode)}>Copy</button>
+              <button onClick={() => {
+                const blob = new Blob([latexCode], {type: 'text/plain'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'document.tex';
+                a.click();
+                URL.revokeObjectURL(url);
+              }}>Download .tex</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
