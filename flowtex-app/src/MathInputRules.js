@@ -8,7 +8,7 @@ export const MathInputRules = Extension.create({
     return [
       // Display math first: $$...$$ → block node
       new InputRule({
-        find: /\$\$([^\$]+?)\$\$/,
+        find: /\$\$([^$]+?)\$\$/,
         handler({ state, range, match }) {
           const latex = match[1].trim();
           if (!latex) return null;
@@ -20,7 +20,7 @@ export const MathInputRules = Extension.create({
 
       // Inline math: $...$ → inline node (no adjacent $)
       new InputRule({
-        find: /(?<!\$)\$(?!\$)([^\$]+?)(?<!\$)\$(?!\$)/,
+        find: /(?<!\$)\$(?!\$)([^$]+?)(?<!\$)\$(?!\$)/,
         handler({ state, range, match }) {
           const latex = match[1].trim();
           if (!latex) return null;
