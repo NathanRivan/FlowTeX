@@ -169,7 +169,6 @@ const Editor = () => {
           initialLatex={mathModal.latex}
           onUpdate={(newLatex) => {
             if (editor && mathModal.nodePos !== null) {
-              const nodeType = mathModal.isDisplay ? 'katexDisplay' : 'katex';
               editor.view.dispatch(
                 editor.state.tr.setNodeMarkup(mathModal.nodePos, null, { latex: newLatex })
               );
