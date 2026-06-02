@@ -1,157 +1,58 @@
+/* ===== GLOBAL RESET & BASE ===== */
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f1f3f4;
+  font-family: 'Times New Roman', serif;
+}
+
+/* ===== EDITOR CONTAINER ===== */
 .editor-container {
+  background: #f1f3f4;
+  min-height: 100vh;
   display: flex;
   flex-direction: column;
-  height: 100vh;
-  padding: 20px;
-  font-family: monospace;
-  background: #fafafa;
+  align-items: center;
+  padding-top: 20px;
+  padding-bottom: 40px;
 }
 
+/* ===== TOOLBAR ===== */
 .toolbar {
+  width: 100%;
+  max-width: 8.5in;
   display: flex;
-  gap: 8px;
-  margin-bottom: 20px;
   flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px 12px;
+  margin-bottom: 20px;
+  background: white;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
 }
 
-.toolbar button {
-  padding: 8px 12px;
+.toolbar button,
+.toolbar select {
+  padding: 6px 10px;
+  cursor: pointer;
   background: white;
   border: 1px solid #ccc;
-  border-radius: 6px;
-  cursor: pointer;
+  border-radius: 4px;
+  font-size: 13px;
   font-weight: 500;
+  transition: background 0.15s;
 }
 
 .toolbar button:hover {
   background: #f0f0f0;
 }
 
-.split-view {
-  display: flex;
-  flex: 1;
-  gap: 20px;
-  min-height: 0;
-}
-
-.split-view textarea,
-.split-view .preview {
-  flex: 1;
-  padding: 16px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  background: white;
-  overflow: auto;
-  font-size: 16px;
-}
-
-.split-view textarea {
-  font-family: monospace;
-  resize: none;
-}
-
-.split-view .preview {
-  font-family: 'Times New Roman', serif;
-}
-
-.actions {
-  display: flex;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.actions button {
-  padding: 8px 16px;
-  background: #2c3e50;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.actions button:hover {
-  background: #1e2b36;
-}
-
-.katex-display {
-  display: block;
-  text-align: center;
-  margin: 1em 0;
-}
-.slash-popup {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  font-size: 14px;
-}
-.slash-item:hover {
-  background: #f0f0f0;
-}
-
-.toolbar {
-  display: flex;
-  gap: 4px;
-  padding: 8px;
-  border-bottom: 1px solid #ddd;
-  flex-wrap: wrap;
-}
-.toolbar button,
-.toolbar select {
-  padding: 4px 8px;
-  cursor: pointer;
-  background: white;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  font-size: 14px;
-}
-.toolbar button.active {
+.toolbar button:active {
   background: #e0e0e0;
-}
-
-/* Full editor background – light gray like Google Docs */
-.editor-container {
-  background-color: #f1f3f4;
-  min-height: 100vh;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  padding-top: 20px;
-  padding-bottom: 50px;
-}
-
-
-.toolbar {
-  width: 100%;
-  max-width: 8.5in;   
-  margin-bottom: 20px;
-}
-
-.page-wrapper {
-  width: 100%;
-  display: flex;
-  justify-content: center;
-}
-
-.page {
-  width: 8.5in;         
-  min-height: 11in;      
-  background: white;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
-  padding: 1in;          
-  margin: 0 auto;
-  box-sizing: border-box;
-  font-family: 'Times New Roman', serif; 
-  font-size: 12pt;
-  line-height: 1.5;
-}
-
-.page .ProseMirror {
-  outline: none;
-  min-height: 100%;
-  background: transparent;
-}
-
-.editor-container .ProseMirror {
-  padding: 0;
-  margin: 0;
 }
 
 .toolbar button.active {
@@ -160,14 +61,74 @@
   color: #202124;
 }
 
-.toolbar button:hover {
-  background-color: #e8eaed;
+.toolbar select {
+  min-width: 80px;
 }
 
-.toolbar button:active {
-  background-color: #d0d4d9;
+/* ===== PAGE WRAPPER (gray canvas) ===== */
+.page-wrapper {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  background: #f1f3f4;
 }
 
+/* ===== THE VISIBLE "PAGE" ===== */
+.page {
+  width: 8.5in;
+  min-height: 11in;            /* full page height */
+  margin: 0 auto;
+  background: white;           /* fallback white */
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+  padding: 1in;                /* page margins */
+  font-family: 'Times New Roman', serif;
+  font-size: 12pt;
+  line-height: 1.5;
+
+  /* The repeating gradient that creates page lines */
+  background: repeating-linear-gradient(
+    to bottom,
+    white 0px,
+    white 1055px,              /* 11in minus 1px for the line */
+    #d0d0d0 1055px,            /* subtle gray line */
+    #f1f3f4 1056px,            /* gap */
+    #f1f3f4 1076px             /* gap end (20px gap) */
+  );
+}
+
+/* ProseMirror editor inside the page */
+.page .ProseMirror {
+  outline: none;
+  padding: 0;
+  margin: 0;
+  min-height: 100%;
+  background: transparent;     /* the page background shows through */
+}
+
+/* ===== HIDE OLD PAGE-BREAK ELEMENTS (if any) ===== */
+.page-break {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 30px;
+  user-select: none;
+  cursor: default;
+  margin: 10px 0;
+}
+
+.page-break-line {
+  width: 100%;
+  border-top: 1px dashed #999;
+}
+
+.page-break-label {
+  font-size: 12px;
+  color: #888;
+  margin-top: 4px;
+}
+
+/* ===== SOURCE MODAL ===== */
 .source-modal-overlay {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -217,4 +178,139 @@
   gap: 10px;
   margin-top: 15px;
   justify-content: flex-end;
+}
+
+/* ===== MATH SIDE PANEL ===== */
+.math-side-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  width: 360px;
+  max-width: 90vw;
+  height: 100vh;
+  background: white;
+  box-shadow: -2px 0 8px rgba(0,0,0,0.2);
+  z-index: 1100;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow-y: auto;
+  animation: slideInRight 0.2s ease-out;
+}
+
+@keyframes slideInRight {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+
+.math-panel-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.math-panel-header h3 {
+  margin: 0;
+}
+
+.math-symbol-groups details {
+  margin-bottom: 5px;
+}
+
+.math-symbol-groups summary {
+  cursor: pointer;
+  font-weight: bold;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.math-symbol-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.math-symbol-row button {
+  padding: 3px 6px;
+  font-size: 13px;
+  background: #f0f0f0;
+  border: 1px solid #ccc;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.math-symbol-row button:hover {
+  background: #d3e3fd;
+}
+
+.math-panel-actions {
+  margin-top: 15px;
+  display: flex;
+  gap: 10px;
+}
+
+.math-panel-actions button {
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+/* ===== SLASH COMMAND POPUP ===== */
+.slash-popup {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  border-radius: 6px;
+  background: white;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+  padding: 4px 0;
+  min-width: 200px;
+}
+
+.slash-item:hover {
+  background: #f0f0f0;
+}
+
+/* ===== KATEX DISPLAY ===== */
+.katex-display {
+  display: block;
+  text-align: center;
+  margin: 1em 0;
+}
+/* ===== CLICKABLE MATH INDICATOR ===== */
+.katex-inline {
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s;
+  border-radius: 4px;
+  padding: 2px 4px;
+  margin: 0 2px;
+  display: inline-block;          /* ensures it wraps tightly around the equation */
+  vertical-align: middle;
+}
+
+.katex-inline:hover {
+  background-color: rgba(66, 133, 244, 0.1);
+  box-shadow: 0 0 0 2px rgba(66, 133, 244, 0.25);
+}
+
+/* Display math container */
+.katex-display-node {
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s;
+  border-radius: 6px;
+  padding: 8px 12px;              /* comfortable padding for large equations */
+  margin: 0.5em auto;
+  display: block;                 /* take full width */
+  width: max-content;             /* but only as wide as the content */
+  max-width: 100%;                /* never overflow the page */
+  background: transparent;
+}
+
+.katex-display-node:hover {
+  background-color: rgba(66, 133, 244, 0.08);
+  box-shadow: 0 0 0 3px rgba(66, 133, 244, 0.3);
+}
+
+/* Make sure the inner KaTeX element doesn't clip the clickable area */
+.katex-display-node .katex {
+  display: block;                 /* required for proper layout inside max‑content */
 }

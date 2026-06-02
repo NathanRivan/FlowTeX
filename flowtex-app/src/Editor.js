@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import { Underline } from '@tiptap/extension-underline';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
 import { Highlight } from '@tiptap/extension-highlight';
-import { Strike } from '@tiptap/extension-strike';
 import { FontSize } from 'tiptap-extension-font-size';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { KatexExtension } from './KatexExtension';
@@ -14,19 +12,27 @@ import { MathInputRules } from './MathInputRules';
 import { SlashCommands } from './SlashCommands';
 import { generateLaTeX } from './latexSerializer';
 import './Editor.css';
+import MathEditModal from './MathEditModal';
+import { NodeSelection } from 'prosemirror-state';
+import { PageBreak } from './PageBreak';
+import { PageNode } from './PageNode';
+
 
 const Editor = () => {
   // ---- STATE ----
   const [, setUpdate] = useState(0); // force re‑render on editor changes
   const [showSource, setShowSource] = useState(false);
   const [latexCode, setLatexCode] = useState('');
+  const [mathModal, setMathModal] = useState({
+    open: false,
+    latex: '',
+    nodePos: null,
+  });
 
   // ---- EDITOR CONFIG ----
   const editor = useEditor({
     extensions: [
       StarterKit,
-      Underline,
-      Strike,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       TextStyle,
@@ -46,6 +52,7 @@ const Editor = () => {
       KatexDisplayExtension,
       MathInputRules,
       SlashCommands,
+      PageBreak
     ],
     content: '<p></p>',
   });
@@ -56,6 +63,14 @@ const Editor = () => {
     const handler = () => setUpdate(prev => prev + 1);
     editor.on('transaction', handler);
     return () => editor.off('transaction', handler);
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    window.flowtexMathEdit = (pos, latex, isDisplay) => {
+      setMathModal({ open: true, latex, nodePos: pos, isDisplay: !!isDisplay });
+    };
+    return () => { delete window.flowtexMathEdit; };
   }, [editor]);
 
   // ---- HELPER ----
@@ -79,9 +94,11 @@ const Editor = () => {
         <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} className={editor.isActive('underline') ? 'active' : ''}><u>U</u></button>
         <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} className={editor.isActive('strike') ? 'active' : ''}><s>S</s></button>
         <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleHighlight().run()} className={editor.isActive('highlight') ? 'active' : ''}>🖍️</button>
+        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().insertPageBreak().run()}>
+          📄 Page Break
+        </button>
 
         <select onChange={e => { const f = e.target.value; if(f) editor.chain().focus().setFontFamily(f).run(); else editor.chain().focus().unsetFontFamily().run(); }}>
-          <option value="">Font</option>
           <option value='"Latin Modern Roman", serif'>Latin Modern (LaTeX)</option>
           <option value='serif'>Serif</option>
           <option value='sans-serif'>Sans-Serif</option>
@@ -92,7 +109,6 @@ const Editor = () => {
         </select>
 
         <select onChange={e => { const s = e.target.value; if(s) editor.chain().focus().setFontSize(s).run(); else editor.chain().focus().unsetFontSize().run(); }}>
-          <option value="">Size</option>
           <option value="12pt">12</option>
           <option value="14pt">14</option>
           <option value="16pt">16</option>
@@ -142,8 +158,32 @@ const Editor = () => {
           </div>
         </div>
       )}
-    </div>
+            {/* LaTeX source modal */}
+      {showSource && (
+        <div className="source-modal-overlay" onClick={() => setShowSource(false)}>
+          ...
+        </div>
+      )}
+
+      {/* MATH EDIT MODAL — ADD THIS BLOCK */}
+      {mathModal.open && (
+        <MathEditModal
+          initialLatex={mathModal.latex}
+          onUpdate={(newLatex) => {
+            if (editor && mathModal.nodePos !== null) {
+              const nodeType = mathModal.isDisplay ? 'katexDisplay' : 'katex';
+              editor.view.dispatch(
+                editor.state.tr.setNodeMarkup(mathModal.nodePos, null, { latex: newLatex })
+              );
+            }
+          }}
+          onClose={() => setMathModal({ open: false, latex: '', nodePos: null })}
+        />
+      )};
+    </div>   
   );
 };
+
+
 
 export default Editor;

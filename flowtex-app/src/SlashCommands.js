@@ -33,6 +33,10 @@ export const SlashCommands = Extension.create({
               title: 'Blockquote',
               action: 'blockquote',
             },
+            {
+              title: 'Page Break',
+              action: 'pageBreak'
+            },
           ];
           return allCommands.filter((item) =>
             item.title.toLowerCase().startsWith(query.toLowerCase())
@@ -95,6 +99,9 @@ export const SlashCommands = Extension.create({
                   break;
                 case 'blockquote':
                   chain.setBlockquote().run();
+                  break;
+                case 'pageBreak':
+                  savedEditor.chain().focus().deleteRange(from, to).insertPageBreak().run();
                   break;
                 default:
                   break;

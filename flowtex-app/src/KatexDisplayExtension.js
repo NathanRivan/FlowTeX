@@ -28,37 +28,38 @@ export const KatexDisplayExtension = Node.create({
   },
 
   renderHTML({ node, HTMLAttributes }) {
-    const latex = node.attrs.latex;
-    try {
-      const html = katex.renderToString(latex, {
-        throwOnError: false,
-        displayMode: true,
-      });
-      return ['div', { 'data-latex': latex, ...HTMLAttributes }, { dangerouslySetInnerHTML: { __html: html } }];
-    } catch (e) {
-      return ['div', { 'data-latex': latex, ...HTMLAttributes }, latex];
-    }
+    const latex = node.attrs.latex || '';
+    return ['div', { 'data-latex': latex, ...HTMLAttributes }, latex];
   },
 
   addNodeView() {
-    return ({ node }) => {
+    return (props) => {
+      const { node, getPos } = props;
       const dom = document.createElement('div');
       dom.setAttribute('data-latex', node.attrs.latex);
       dom.classList.add('katex-display-node');
+      dom.setAttribute('title', 'Click to edit math');
 
       const render = (attrs) => {
         try {
-          const html = katex.renderToString(attrs.latex, {
+          dom.innerHTML = katex.renderToString(attrs.latex, {
             throwOnError: false,
             displayMode: true,
           });
-          dom.innerHTML = html;
         } catch (e) {
           dom.innerHTML = `<span style="color:red;">${attrs.latex}</span>`;
         }
       };
 
       render(node.attrs);
+
+      dom.addEventListener('click', (e) => {
+        const pos = getPos?.();
+        if (pos !== undefined && window.flowtexMathEdit) {
+          e.stopPropagation();
+          window.flowtexMathEdit(pos, node.attrs.latex, true);
+        }
+      });
 
       return {
         dom,

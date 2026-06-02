@@ -29,32 +29,24 @@ export const KatexExtension = Node.create({
 
   // NEW: tell the serializer how to output this node as HTML
   renderHTML({ node, HTMLAttributes }) {
-    const latex = node.attrs.latex;
-    const displayMode = node.attrs.display;
-    try {
-      const html = katex.renderToString(latex, {
-        throwOnError: false,
-        displayMode,
-      });
-      return ['span', { 'data-latex': latex, ...HTMLAttributes }, { dangerouslySetInnerHTML: { __html: html } }];
-    } catch (e) {
-      return ['span', { 'data-latex': latex, ...HTMLAttributes }, latex];
-    }
+    const latex = node.attrs.latex || '';
+    return ['span', { 'data-latex': latex, ...HTMLAttributes }, latex];
   },
 
   addNodeView() {
-    return ({ node }) => {
+    return (props) => {
+      const { node, getPos } = props;
       const dom = document.createElement('span');
       dom.setAttribute('data-latex', node.attrs.latex);
-      dom.classList.add(node.attrs.display ? 'katex-display' : 'katex-inline');
+      dom.classList.add('katex-inline');
+      dom.setAttribute('title', 'Click to edit math');
 
       const render = (attrs) => {
         try {
-          const html = katex.renderToString(attrs.latex, {
+          dom.innerHTML = katex.renderToString(attrs.latex, {
             throwOnError: false,
             displayMode: attrs.display,
           });
-          dom.innerHTML = html;
         } catch (e) {
           dom.innerHTML = `<span style="color:red;">${attrs.latex}</span>`;
         }
@@ -62,19 +54,29 @@ export const KatexExtension = Node.create({
 
       render(node.attrs);
 
+      // ----- RELIABLE CLICK HANDLER -----
+      dom.addEventListener('click', (e) => {
+        // Make sure we have a valid position and the global callback exists
+        const pos = getPos?.();
+        if (pos !== undefined && window.flowtexMathEdit) {
+          e.stopPropagation();   // prevent ProseMirror from doing its own selection
+          window.flowtexMathEdit(pos, node.attrs.latex, false);
+        }
+      });
+
       return {
         dom,
         update: (updatedNode) => {
           if (updatedNode.type !== node.type) return false;
           node.attrs = { ...updatedNode.attrs };
           dom.setAttribute('data-latex', node.attrs.latex);
-          dom.className = node.attrs.display ? 'katex-display' : 'katex-inline';
           render(node.attrs);
           return true;
         },
       };
     };
   },
+
 
   addCommands() {
     return {
