@@ -13,9 +13,7 @@ import { SlashCommands } from './SlashCommands';
 import { generateLaTeX } from './latexSerializer';
 import './Editor.css';
 import MathEditModal from './MathEditModal';
-import { NodeSelection } from 'prosemirror-state';
 import { PageBreak } from './PageBreak';
-import { PageNode } from './PageNode';
 
 
 const Editor = () => {
