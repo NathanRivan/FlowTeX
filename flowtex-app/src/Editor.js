@@ -8,12 +8,13 @@ import { FontSize } from 'tiptap-extension-font-size';
 import { FontFamily } from '@tiptap/extension-font-family';
 import { KatexExtension } from './KatexExtension';
 import { KatexDisplayExtension } from './KatexDisplayExtension';
-import { MathInputRules } from './MathInputRules';
+import { MathInputPlugin } from './MathInputPlugin';
 import { SlashCommands } from './SlashCommands';
 import { generateLaTeX } from './latexSerializer';
 import './Editor.css';
 import MathEditModal from './MathEditModal';
 import { PageBreak } from './PageBreak';
+import FontSizeControl from './FontSizeControl';
 
 
 const Editor = () => {
@@ -48,7 +49,7 @@ const Editor = () => {
       FontSize,
       KatexExtension,
       KatexDisplayExtension,
-      MathInputRules,
+      MathInputPlugin,
       SlashCommands,
       PageBreak
     ],
@@ -104,17 +105,15 @@ const Editor = () => {
             <option value='Arial, sans-serif'>Arial</option>
             <option value='"Times New Roman", serif'>Times New Roman</option>
             <option value='"Courier New", monospace'>Courier New</option>
+            <option value='Georgia, serif'>Georgia</option>
+            <option value='Helvetica, sans-serif'>Helvetica</option>
+            <option value='Verdana, sans-serif'>Verdana</option>
+            <option value='Tahoma, sans-serif'>Tahoma</option>
+            <option value='"Lucida Console", monospace'>Lucida Console</option>
+            <option value='Impact, fantasy'>Impact</option>
           </select>
 
-          <select onChange={e => { const s = e.target.value; if(s) editor.chain().focus().setFontSize(s).run(); else editor.chain().focus().unsetFontSize().run(); }}>
-            <option value="12pt">12</option>
-            <option value="14pt">14</option>
-            <option value="16pt">16</option>
-            <option value="18pt">18</option>
-            <option value="20pt">20</option>
-            <option value="24pt">24</option>
-            <option value="30pt">30</option>
-          </select>
+          <FontSizeControl editor={editor} />
 
           <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()}>Left</button>
           <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()}>Center</button>
@@ -140,7 +139,7 @@ const Editor = () => {
             >
               📝 Feedback
             </a>
-            <span className="toolbar-version">v0.4.0 Alpha</span>
+            <span className="toolbar-version">v0.4.1 Alpha</span>
           </div>
         </div>
       </div>
