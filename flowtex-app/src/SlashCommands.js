@@ -79,7 +79,7 @@ export const SlashCommands = Extension.create({
             const { from, to } = savedRange;
 
             // Ensure editor is focused – use Tiptap's own focus command
-            savedEditor.commands.focus('end');
+            savedEditor.commands.focus();
 
             // Use requestAnimationFrame to make sure focus is applied
             requestAnimationFrame(() => {

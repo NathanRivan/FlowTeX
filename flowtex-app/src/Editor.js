@@ -85,44 +85,63 @@ const Editor = () => {
   // ---- RENDER ----
   return (
     <div className="editor-container">
-      {/* TOOLBAR */}
       <div className="toolbar">
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'active' : ''}><strong>B</strong></button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'active' : ''}><em>I</em></button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} className={editor.isActive('underline') ? 'active' : ''}><u>U</u></button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} className={editor.isActive('strike') ? 'active' : ''}><s>S</s></button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleHighlight().run()} className={editor.isActive('highlight') ? 'active' : ''}>🖍️</button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().insertPageBreak().run()}>
-          📄 Page Break
-        </button>
+        <div className="toolbar-inner">
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'active' : ''}><strong>B</strong></button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'active' : ''}><em>I</em></button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} className={editor.isActive('underline') ? 'active' : ''}><u>U</u></button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} className={editor.isActive('strike') ? 'active' : ''}><s>S</s></button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleHighlight().run()} className={editor.isActive('highlight') ? 'active' : ''}>🖍️</button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().insertPageBreak().run()}>
+            📄 Page Break
+          </button>
 
-        <select onChange={e => { const f = e.target.value; if(f) editor.chain().focus().setFontFamily(f).run(); else editor.chain().focus().unsetFontFamily().run(); }}>
-          <option value='"Latin Modern Roman", serif'>Latin Modern (LaTeX)</option>
-          <option value='serif'>Serif</option>
-          <option value='sans-serif'>Sans-Serif</option>
-          <option value='monospace'>Monospace</option>
-          <option value='Arial, sans-serif'>Arial</option>
-          <option value='"Times New Roman", serif'>Times New Roman</option>
-          <option value='"Courier New", monospace'>Courier New</option>
-        </select>
+          <select onChange={e => { const f = e.target.value; if(f) editor.chain().focus().setFontFamily(f).run(); else editor.chain().focus().unsetFontFamily().run(); }}>
+            <option value='"Latin Modern Roman", serif'>Latin Modern (LaTeX)</option>
+            <option value='serif'>Serif</option>
+            <option value='sans-serif'>Sans-Serif</option>
+            <option value='monospace'>Monospace</option>
+            <option value='Arial, sans-serif'>Arial</option>
+            <option value='"Times New Roman", serif'>Times New Roman</option>
+            <option value='"Courier New", monospace'>Courier New</option>
+          </select>
 
-        <select onChange={e => { const s = e.target.value; if(s) editor.chain().focus().setFontSize(s).run(); else editor.chain().focus().unsetFontSize().run(); }}>
-          <option value="12pt">12</option>
-          <option value="14pt">14</option>
-          <option value="16pt">16</option>
-          <option value="18pt">18</option>
-          <option value="20pt">20</option>
-          <option value="24pt">24</option>
-          <option value="30pt">30</option>
-        </select>
+          <select onChange={e => { const s = e.target.value; if(s) editor.chain().focus().setFontSize(s).run(); else editor.chain().focus().unsetFontSize().run(); }}>
+            <option value="12pt">12</option>
+            <option value="14pt">14</option>
+            <option value="16pt">16</option>
+            <option value="18pt">18</option>
+            <option value="20pt">20</option>
+            <option value="24pt">24</option>
+            <option value="30pt">30</option>
+          </select>
 
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()}>Left</button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()}>Center</button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('right').run()}>Right</button>
-        <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('justify').run()}>Justify</button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()}>Left</button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()}>Center</button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('right').run()}>Right</button>
+          <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('justify').run()}>Justify</button>
 
-        {/* LaTeX Source Toggle */}
-        <button onClick={handleShowSource}>LaTeX Source</button>
+          {/* LaTeX Source Toggle */}
+          <button onClick={handleShowSource}>LaTeX Source</button>
+          <div className="toolbar-right">
+            <a
+              href="https://docs.google.com/document/d/1nBMPNTxlaXkcNME8on8_TwG4jL0Ep0Y1CuvhfGUWr5M/edit?usp=sharing"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="toolbar-link"
+            >
+              📘 Guide
+            </a>
+            <a
+              href="https://forms.gle/io39xQCoe57m7FCVA"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="toolbar-link"
+            >
+              📝 Feedback
+            </a>
+          </div>
+        </div>
       </div>
 
       {/* PAGE WRAPPER */}

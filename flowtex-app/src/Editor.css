@@ -16,23 +16,29 @@ body {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 20px;
+  padding-top: 0;
   padding-bottom: 40px;
 }
 
 /* ===== TOOLBAR ===== */
 .toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 100;
   width: 100%;
-  max-width: 8.5in;
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  padding: 8px 12px;
-  margin-bottom: 20px;
   background: white;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+  border-bottom: 1px solid #ddd;
   box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  padding: 0;                    /* padding handled by inner container */
+}
+.toolbar-inner {
+  display: flex;
+  flex-wrap: nowrap;          /* never wrap to next line */
+  gap: 6px;
+  align-items: center;        /* vertically center all items */
+  padding: 8px 12px;
+  max-width: 100%;            /* fill the full bar width */
+  overflow-x: auto;           /* horizontal scroll when needed */
 }
 
 .toolbar button,
@@ -45,6 +51,7 @@ body {
   font-size: 13px;
   font-weight: 500;
   transition: background 0.15s;
+  flex-shrink: 0;
 }
 
 .toolbar button:hover {
@@ -65,12 +72,42 @@ body {
   min-width: 80px;
 }
 
+.toolbar-right {
+  margin-left: auto;          /* push to the far right */
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-shrink: 0;             /* never shrink or wrap */
+}
+
+.toolbar-link {
+  color: #1a73e8;
+  text-decoration: underline;
+  font-weight: 500;
+  padding: 6px 10px;
+  font-size: 13px;
+  white-space: nowrap;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+}
+
+.toolbar-link:hover {
+  background-color: rgba(66,133,244,0.1);
+  border-radius: 4px;
+  text-decoration: none;
+}
+
 /* ===== PAGE WRAPPER (gray canvas) ===== */
 .page-wrapper {
   width: 100%;
   display: flex;
   justify-content: center;
   background: #f1f3f4;
+  margin-top: 20px;
 }
 
 /* ===== THE VISIBLE "PAGE" ===== */
@@ -85,7 +122,7 @@ body {
   font-size: 12pt;
   line-height: 1.5;
 
-  /* The repeating gradient that creates page lines */
+  
   background: repeating-linear-gradient(
     to bottom,
     white 0px,
