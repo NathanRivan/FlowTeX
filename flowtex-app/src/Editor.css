@@ -339,6 +339,19 @@ body {
   cursor: pointer;
 }
 
+.math-textarea {
+  width: 100%;
+  min-height: 120px;            /* guarantee a minimum visible height */
+  font-family: 'Courier New', monospace;
+  font-size: 14px;              /* make it readable regardless of zoom */
+  line-height: 1.5;
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  resize: vertical;             /* allow the user to adjust height if needed */
+  box-sizing: border-box;
+}
+
 /* ===== SLASH COMMAND POPUP ===== */
 .slash-popup {
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;

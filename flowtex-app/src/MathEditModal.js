@@ -225,8 +225,8 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
         onChange={(e) => setLatex(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder="LaTeX code..."
-        rows={6}
-        style={{ width: '100%', fontFamily: 'monospace', marginTop: 10 }}
+        rows={8}
+        className='math-textarea'
       />
 
       {/* Live preview */}
