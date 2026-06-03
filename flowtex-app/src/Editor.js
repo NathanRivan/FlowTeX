@@ -140,6 +140,7 @@ const Editor = () => {
             >
               📝 Feedback
             </a>
+            <span className="toolbar-version">v0.4.0 Alpha</span>
           </div>
         </div>
       </div>

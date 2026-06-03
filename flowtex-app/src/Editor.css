@@ -101,6 +101,14 @@ body {
   text-decoration: none;
 }
 
+.toolbar-version {
+  font-size: 12px;
+  color: #888;
+  white-space: nowrap;
+  margin-left: 10px;
+  user-select: none;
+}
+
 /* ===== PAGE WRAPPER (gray canvas) ===== */
 .page-wrapper {
   width: 100%;
