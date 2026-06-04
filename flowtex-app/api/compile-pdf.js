@@ -9,13 +9,15 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://texlive.net/compile', {
+    const response = await fetch('https://rtex.probablyaweb.site/api/v2', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: new URLSearchParams({ code: latex }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ code: latex }),
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error('rtex error:', errorText);
       return res.status(response.status).json({
         error: `Compilation failed (${response.status})`,
       });
@@ -26,6 +28,7 @@ export default async function handler(req, res) {
     res.setHeader('Content-Disposition', 'attachment; filename="document.pdf"');
     return res.send(Buffer.from(pdfBuffer));
   } catch (err) {
+    console.error(err);
     return res.status(500).json({ error: 'Internal server error' });
   }
 }
