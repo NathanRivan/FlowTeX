@@ -6,13 +6,12 @@ export const MathInputPlugin = Extension.create({
 
   addProseMirrorPlugins() {
     const pluginKey = new PluginKey('mathInputHandler');
+    let converting = false;
 
-    // Helper: given a position, find the entire $...$ or $$...$$ pattern around it
     function findMathRange(state, pos) {
       const { doc } = state;
       const $pos = doc.resolve(pos);
       const block = $pos.node();
-
       if (!block || !block.isTextblock) return null;
 
       const blockStart = $pos.start();
@@ -20,21 +19,21 @@ export const MathInputPlugin = Extension.create({
       const blockText = state.doc.textBetween(blockStart, blockEnd, '\n', '\ufffc');
       const cursorOffset = pos - blockStart;
 
-      // Single robust regex to match both display and inline math
       const regex = /(\$\$([^$]*?)\$\$)|(?<!\$)\$([^$]+?)\$(?!\$)/g;
       let match;
       while ((match = regex.exec(blockText)) !== null) {
         const matchStart = match.index;
         const matchEnd = match.index + match[0].length;
-        // Check if cursor is inside this match (including right after the match end)
         if (cursorOffset >= matchStart && cursorOffset <= matchEnd) {
-          // Determine type
           const display = !!match[1];
           const latex = (display ? match[2] : match[3]).trim();
           if (!latex) continue;
-          const from = blockStart + matchStart;
-          const to = blockStart + matchEnd;
-          return { from, to, latex, display };
+          return {
+            from: blockStart + matchStart,
+            to: blockStart + matchEnd,
+            latex,
+            display,
+          };
         }
       }
       return null;
@@ -46,25 +45,43 @@ export const MathInputPlugin = Extension.create({
         props: {
           handleDOMEvents: {
             input: (view, event) => {
-              // Only act if the input event added a '$'
-              const inputType = event.inputType;
-              if (inputType !== 'insertText' || event.data !== '$') return false;
+              if (converting) return false;
+              if (event.inputType !== 'insertText' || event.data !== '$') return false;
 
-              // Wait for the editor state to be updated
+              converting = true;
               requestAnimationFrame(() => {
                 const { state, dispatch } = view;
                 const pos = state.selection.head;
                 const range = findMathRange(state, pos);
-                if (!range) return;
-
-                const { from, to, latex, display } = range;
-                const nodeType = display ? 'katexDisplay' : 'katex';
-                const node = state.schema.nodes[nodeType]?.create({ latex });
-                if (!node) return;
-                const tr = state.tr.replaceWith(from, to, node);
-                dispatch(tr);
+                if (range) {
+                  const { from, to, latex, display } = range;
+                  const nodeType = display ? 'katexDisplay' : 'katex';
+                  const node = state.schema.nodes[nodeType]?.create({ latex });
+                  if (node) {
+                    const tr = state.tr.replaceWith(from, to, node);
+                    dispatch(tr);
+                  }
+                }
+                converting = false;
               });
-
+              return false;
+            },
+            keydown: (view, event) => {
+              // Only intercept space when the cursor is right after a math node
+              if (event.key === ' ') {
+                const { state, dispatch } = view;
+                const { selection } = state;
+                // Check if the position right before the cursor is a math node
+                const $pos = state.doc.resolve(selection.head);
+                const nodeBefore = $pos.nodeBefore;
+                if (nodeBefore && (nodeBefore.type.name === 'katex' || nodeBefore.type.name === 'katexDisplay')) {
+                  event.preventDefault();
+                  // Insert a space character safely
+                  const tr = state.tr.insertText(' ', selection.head);
+                  dispatch(tr);
+                  return true; // prevent default
+                }
+              }
               return false;
             },
           },

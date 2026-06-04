@@ -33,7 +33,7 @@ const Editor = () => {
     extensions: [
       StarterKit,
       Highlight.configure({ multicolor: true }),
-      TextAlign.configure({ types: ['heading', 'paragraph'] }),
+      TextAlign.configure({ types: ['heading', 'paragraph'], defaultAlignment: 'left', }),
       TextStyle,
       FontFamily.configure({
         fontFamilies: [
