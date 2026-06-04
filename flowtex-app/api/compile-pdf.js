@@ -9,10 +9,10 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch('https://latexonline.cc/compile', {
+    const response = await fetch('https://texlive.net/compile', {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
-      body: latex,
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ code: latex }),
     });
 
     if (!response.ok) {
