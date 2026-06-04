@@ -31,37 +31,8 @@ const Editor = () => {
     latex: '',
     nodePos: null,
   });
-  const handleDownloadPDF = async () => {
-    if (!editor) return;
-    setPdfLoading(true);
-    try {
-      const fullTeX = `\\documentclass{article}
-      \\begin{document}
-      Hello world.
-      \\end{document}`;
-      const response = await fetch('/api/compile-pdf', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: fullTeX,
-      });
-
-      if (!response.ok) {
-        throw new Error(`Compilation failed (${response.status})`);
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'document.pdf';
-      a.click();
-      URL.revokeObjectURL(url);
-    } catch (err) {
-      alert('PDF compilation failed. Check the console.');
-      console.error(err);
-    } finally {
-      setPdfLoading(false);
-    }
+  const handlePrintPDF = () => {
+    window.print();
   };
   // ---- EDITOR CONFIG ----
   const editor = useEditor({
@@ -89,7 +60,7 @@ const Editor = () => {
       PageBreak
     ],
     content: '<p></p>',
-  });
+  })
 
   // ---- FORCE RE-RENDER ON TRANSACTION (for toolbar active states) ----
   useEffect(() => {
@@ -178,7 +149,7 @@ const Editor = () => {
           <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('justify').run()}>Justify</button>
 
           {/* LaTeX Source Toggle */}
-          <button onClick={handleShowSource}>LaTeX Source</button>
+          <button onClick={handleShowSource}>Export .tex</button>
           <button
             onMouseDown={(e) => e.preventDefault()}
             onClick={() => {
@@ -189,12 +160,9 @@ const Editor = () => {
               }
             }}
           >
-            📥 Import .tex
+            Import .tex
           </button>
-          <button onClick={handleShowSource}>LaTeX Source</button>
-          <button onClick={handleDownloadPDF} disabled={pdfLoading}>
-            {pdfLoading ? 'Compiling…' : '📄 PDF'}
-          </button>
+          <button onClick={handlePrintPDF}>🖨️ Print PDF</button>
           <div className="toolbar-right">
             <a
               href="https://docs.google.com/document/d/1nBMPNTxlaXkcNME8on8_TwG4jL0Ep0Y1CuvhfGUWr5M/edit?usp=sharing"
@@ -212,7 +180,7 @@ const Editor = () => {
             >
               📝 Feedback
             </a>
-            <span className="toolbar-version">v0.4.1 Alpha</span>
+            <span className="toolbar-version">v0.4.5 Alpha</span>
           </div>
         </div>
       </div>
@@ -268,7 +236,7 @@ const Editor = () => {
           }}
           onClose={() => setMathModal({ open: false, latex: '', nodePos: null })}
         />
-      )};
+      )}
     </div>   
   );
 };

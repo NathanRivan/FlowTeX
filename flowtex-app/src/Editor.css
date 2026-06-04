@@ -485,3 +485,86 @@ blockquote strong {
   font-weight: 600;
   color: #111827;
 }
+
+/*PDF*/
+@media print {
+  @page {
+    margin: 0;
+    size: auto;
+  }
+
+  /* Hide all UI elements completely */
+  .toolbar,
+  .toolbar-inner,
+  .toolbar-right,
+  .source-modal-overlay,
+  .math-side-panel,
+  .slash-popup,
+  .math-panel-actions,
+  .math-symbol-groups,
+  .page-break,
+  .toolbar-version,
+  .font-size-control,
+  .font-size-input,
+  .font-size-btn {
+    display: none !important;
+  }
+
+  /* Clean document area */
+  body {
+    margin: 0;
+    background: white;
+  }
+
+  .editor-container {
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+
+  .page-wrapper {
+    background: white;
+    padding: 0;
+    margin: 0;
+  }
+
+  .page {
+    width: 100%;
+    max-width: 100%;
+    margin: 0;
+    box-shadow: none;
+    background: white;
+    padding: 1in;
+    min-height: 0;
+  }
+
+  .ProseMirror {
+    background: white;
+    color: black;
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* ★ KILL ALL PSEUDO-ELEMENT CONTENT – this removes the stray semicolon and any other generated junk */
+  *::before,
+  *::after {
+    content: none !important;
+  }
+
+  /* Ensure links don't show their URL */
+  a[href]::after {
+    content: none !important;
+  }
+
+  /* Remove empty paragraphs */
+  p:empty {
+    display: none;
+    margin: 0;
+    padding: 0;
+  }
+  .ProseMirror-widget,
+  .ProseMirror-decoration,
+  [data-decoration] {
+    display: none !important;
+  }
+}
