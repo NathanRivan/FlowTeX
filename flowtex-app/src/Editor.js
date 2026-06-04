@@ -15,6 +15,8 @@ import './Editor.css';
 import MathEditModal from './MathEditModal';
 import { PageBreak } from './PageBreak';
 import FontSizeControl from './FontSizeControl';
+import { importLaTeX } from './latexImporter';
+import { buildFullLaTeX } from './latexSerializer';
 
 
 const Editor = () => {
@@ -22,12 +24,42 @@ const Editor = () => {
   const [, setUpdate] = useState(0); // force re‑render on editor changes
   const [showSource, setShowSource] = useState(false);
   const [latexCode, setLatexCode] = useState('');
+  const [baseFontSize, setBaseFontSize] = useState(12); // default 12pt
+  const [pdfLoading, setPdfLoading] = useState(false);
   const [mathModal, setMathModal] = useState({
     open: false,
     latex: '',
     nodePos: null,
   });
+  const handleDownloadPDF = async () => {
+    if (!editor) return;
+    setPdfLoading(true);
+    try {
+      const fullTeX = buildFullLaTeX(editor);
+      const response = await fetch('/api/compile-pdf', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: fullTeX,
+      });
 
+      if (!response.ok) {
+        throw new Error(`Compilation failed (${response.status})`);
+      }
+
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'document.pdf';
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      alert('PDF compilation failed. Check the console.');
+      console.error(err);
+    } finally {
+      setPdfLoading(false);
+    }
+  };
   // ---- EDITOR CONFIG ----
   const editor = useEditor({
     extensions: [
@@ -71,6 +103,11 @@ const Editor = () => {
     };
     return () => { delete window.flowtexMathEdit; };
   }, [editor]);
+  useEffect(() => {
+    if (!editor) return;
+    const dom = editor.view.dom;
+    dom.style.fontSize = baseFontSize + 'pt';
+  }, [editor, baseFontSize]);
 
   // ---- HELPER ----
   const handleShowSource = () => {
@@ -112,6 +149,23 @@ const Editor = () => {
             <option value='"Lucida Console", monospace'>Lucida Console</option>
             <option value='Impact, fantasy'>Impact</option>
           </select>
+          <select
+            onMouseDown={(e) => e.preventDefault()}
+            value={baseFontSize}
+            onChange={(e) => {
+              const size = parseInt(e.target.value, 10);
+              setBaseFontSize(size);
+            }}
+          >
+            <option value="10">10pt</option>
+            <option value="11">11pt</option>
+            <option value="12">12pt</option>
+            <option value="14">14pt</option>
+            <option value="16">16pt</option>
+            <option value="18">18pt</option>
+            <option value="20">20pt</option>
+            <option value="24">24pt</option>
+          </select>
 
           <FontSizeControl editor={editor} />
 
@@ -122,6 +176,22 @@ const Editor = () => {
 
           {/* LaTeX Source Toggle */}
           <button onClick={handleShowSource}>LaTeX Source</button>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              const raw = prompt('Paste your .tex content below:');
+              if (raw) {
+                const converted = importLaTeX(raw);
+                editor.commands.setContent(converted);
+              }
+            }}
+          >
+            📥 Import .tex
+          </button>
+          <button onClick={handleShowSource}>LaTeX Source</button>
+          <button onClick={handleDownloadPDF} disabled={pdfLoading}>
+            {pdfLoading ? 'Compiling…' : '📄 PDF'}
+          </button>
           <div className="toolbar-right">
             <a
               href="https://docs.google.com/document/d/1nBMPNTxlaXkcNME8on8_TwG4jL0Ep0Y1CuvhfGUWr5M/edit?usp=sharing"

@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import katex from 'katex';
+import { preprocessMathForDisplay } from './mathPreprocessor';
 
 // --- Expanded Symbol Set (organized) ---
 const symbolGroups = [
@@ -106,8 +107,6 @@ const symbolGroups = [
       { label: 'ẋ', insert: '\\dot{x}' },
       { label: 'ẍ', insert: '\\ddot{x}' },
       { label: 'x̲', insert: '\\underline{x}' },
-      { label: 'x̂', insert: '\\widehat{x}' },
-      { label: 'x̃', insert: '\\widetilde{x}' },
       { label: 'ℜ', insert: '\\Re' },
       { label: 'ℑ', insert: '\\Im' },
       { label: 'ℓ', insert: '\\ell' },
@@ -139,6 +138,7 @@ const symbolGroups = [
 const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
   const [latex, setLatex] = useState(initialLatex || '');
   const [previewHtml, setPreviewHtml] = useState('');
+  const [loading, setLoading] = useState(false);
   const textareaRef = useRef(null);
 
   // Update preview on every change
@@ -147,15 +147,30 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
   }, [initialLatex]);
   
   useEffect(() => {
-    try {
-      const html = katex.renderToString(latex || ' ', {
-        throwOnError: false,
-        displayMode: false,
-      });
-      setPreviewHtml(html);
-    } catch (e) {
-      setPreviewHtml(`<span style="color:red;">${e.message}</span>`);
-    }
+    let cancelled = false;
+    setLoading(true);
+
+    // Use requestAnimationFrame to let the "Rendering…" message paint first
+    requestAnimationFrame(() => {
+      if (cancelled) return;
+      try {
+        const html = katex.renderToString(
+          preprocessMathForDisplay(latex || ' '),
+          { throwOnError: false, displayMode: false }
+        );
+        if (!cancelled) {
+          setPreviewHtml(html);
+          setLoading(false);
+        }
+      } catch (e) {
+        if (!cancelled) {
+          setPreviewHtml(`<span style="color:red;">${e.message}</span>`);
+          setLoading(false);
+        }
+      }
+    });
+
+    return () => { cancelled = true; };
   }, [latex]);
 
   const insertSymbol = (insertStr) => {
@@ -232,9 +247,14 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
       {/* Live preview */}
       <div
         className="math-preview"
-        dangerouslySetInnerHTML={{ __html: previewHtml }}
         style={{ padding: 10, border: '1px solid #ddd', marginTop: 10, minHeight: 40 }}
-      />
+      >
+        {loading ? (
+          <div className="math-preview-loading">Rendering…</div>
+        ) : (
+          <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+        )}
+      </div>
 
       <div className="math-panel-actions">
         <button onClick={handleSave}>Apply (Enter)</button>

@@ -68,6 +68,9 @@ export const KatexDisplayExtension = Node.create({
           node.attrs = { ...updatedNode.attrs };
           dom.setAttribute('data-latex', node.attrs.latex);
           render(node.attrs);
+          dom.style.animation = 'none';
+          void dom.offsetHeight;
+          dom.style.animation = '';
           return true;
         },
       };

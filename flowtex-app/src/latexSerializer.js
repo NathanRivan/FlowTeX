@@ -148,3 +148,14 @@ export function generateLaTeX(editor) {
   const doc = editor.getJSON();
   return renderNode(doc);
 }
+
+export function buildFullLaTeX(editor) {
+  const body = generateLaTeX(editor);
+  return `\\documentclass{article}
+\\usepackage{amsmath, amssymb, amsthm, graphicx}
+\\usepackage[utf8]{inputenc}
+\\usepackage{hyperref}
+\\begin{document}
+${body}
+\\end{document}`;
+}

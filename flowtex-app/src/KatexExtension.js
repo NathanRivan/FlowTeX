@@ -1,5 +1,7 @@
 import { Node } from '@tiptap/core';
 import katex from 'katex';
+import 'katex/dist/katex.min.css';
+import { preprocessMathForDisplay } from './mathPreprocessor';
 
 export const KatexExtension = Node.create({
   name: 'katex',
@@ -27,10 +29,18 @@ export const KatexExtension = Node.create({
     ];
   },
 
-  // NEW: tell the serializer how to output this node as HTML
   renderHTML({ node, HTMLAttributes }) {
     const latex = node.attrs.latex || '';
-    return ['span', { 'data-latex': latex, ...HTMLAttributes }, latex];
+    const processed = preprocessMathForDisplay(latex);
+    try {
+      const html = katex.renderToString(processed, {
+        throwOnError: false,
+        displayMode: false,
+      });
+      return ['span', { 'data-latex': latex, ...HTMLAttributes }, { _: 'html', value: html }];
+    } catch (e) {
+      return ['span', { 'data-latex': latex, ...HTMLAttributes }, latex];
+    }
   },
 
   addNodeView() {
@@ -43,10 +53,11 @@ export const KatexExtension = Node.create({
 
       const render = (attrs) => {
         try {
-          dom.innerHTML = katex.renderToString(attrs.latex, {
-            throwOnError: false,
-            displayMode: attrs.display,
-          });
+          const html = katex.renderToString(
+            preprocessMathForDisplay(attrs.latex),
+            { throwOnError: false, displayMode: attrs.display }
+          );
+          dom.innerHTML = html;
         } catch (e) {
           dom.innerHTML = `<span style="color:red;">${attrs.latex}</span>`;
         }
@@ -54,15 +65,19 @@ export const KatexExtension = Node.create({
 
       render(node.attrs);
 
-      // ----- RELIABLE CLICK HANDLER -----
       dom.addEventListener('click', (e) => {
-        // Make sure we have a valid position and the global callback exists
         const pos = getPos?.();
         if (pos !== undefined && window.flowtexMathEdit) {
-          e.stopPropagation();   // prevent ProseMirror from doing its own selection
+          e.stopPropagation();
           window.flowtexMathEdit(pos, node.attrs.latex, false);
         }
       });
+
+      const triggerAnimation = (dom) => {
+        dom.style.animation = 'none';
+        void dom.offsetHeight;
+        dom.style.animation = '';
+      };
 
       return {
         dom,
@@ -71,12 +86,14 @@ export const KatexExtension = Node.create({
           node.attrs = { ...updatedNode.attrs };
           dom.setAttribute('data-latex', node.attrs.latex);
           render(node.attrs);
+          dom.style.animation = 'none';
+          void dom.offsetHeight;
+          dom.style.animation = '';
           return true;
         },
       };
     };
   },
-
 
   addCommands() {
     return {
