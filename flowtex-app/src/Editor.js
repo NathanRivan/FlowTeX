@@ -180,7 +180,7 @@ const Editor = () => {
             >
               📝 Feedback
             </a>
-            <span className="toolbar-version">v0.4.5 Alpha</span>
+            <span className="toolbar-version">v0.5.0 Alpha</span>
           </div>
         </div>
       </div>
