@@ -35,7 +35,10 @@ const Editor = () => {
     if (!editor) return;
     setPdfLoading(true);
     try {
-      const fullTeX = buildFullLaTeX(editor);
+      const fullTeX = `\\documentclass{article}
+      \\begin{document}
+      Hello world.
+      \\end{document}`;
       const response = await fetch('/api/compile-pdf', {
         method: 'POST',
         headers: { 'Content-Type': 'text/plain' },
