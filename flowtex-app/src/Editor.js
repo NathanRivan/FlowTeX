@@ -25,7 +25,6 @@ const Editor = () => {
   const [showSource, setShowSource] = useState(false);
   const [latexCode, setLatexCode] = useState('');
   const [baseFontSize, setBaseFontSize] = useState(12); // default 12pt
-  const [pdfLoading, setPdfLoading] = useState(false);
   const [mathModal, setMathModal] = useState({
     open: false,
     latex: '',
