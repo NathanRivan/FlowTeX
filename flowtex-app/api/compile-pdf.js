@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Only allow POST with LaTeX body
   if (req.method !== 'POST') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
@@ -10,12 +9,9 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Forward the LaTeX to the real compilation service
     const response = await fetch('https://latexonline.cc/compile', {
       method: 'POST',
-      headers: {
-        'Content-Type': 'text/plain',
-      },
+      headers: { 'Content-Type': 'text/plain' },
       body: latex,
     });
 
