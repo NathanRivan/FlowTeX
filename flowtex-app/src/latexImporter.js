@@ -27,7 +27,7 @@ export function importLaTeX(latex) {
   );
 
   // 4. Display math $$...$$ (if any) → same
-  html = html.replace(/\$\$([^\$]+?)\$\$/g, (_, math) =>
+  html = html.replace(/\$\$([^$]+?)\$\$/g, (_, math) =>
     `<div data-latex="${escapeAttr(math.trim())}"></div>`
   );
 
@@ -37,7 +37,7 @@ export function importLaTeX(latex) {
   );
 
   // 6. Inline math $...$ (not followed by another $) → <span data-latex="..."></span>
-  html = html.replace(/\$([^\$]+?)\$/g, (_, math) =>
+  html = html.replace(/\$([^$]+?)\$/g, (_, math) =>
     `<span data-latex="${escapeAttr(math.trim())}"></span>`
   );
 

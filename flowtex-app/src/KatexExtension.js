@@ -73,11 +73,6 @@ export const KatexExtension = Node.create({
         }
       });
 
-      const triggerAnimation = (dom) => {
-        dom.style.animation = 'none';
-        void dom.offsetHeight;
-        dom.style.animation = '';
-      };
 
       return {
         dom,
