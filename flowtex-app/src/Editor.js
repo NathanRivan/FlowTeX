@@ -16,7 +16,7 @@ import MathEditModal from './MathEditModal';
 import { PageBreak } from './PageBreak';
 import FontSizeControl from './FontSizeControl';
 import { importLaTeX } from './latexImporter';
-import { buildFullLaTeX } from './latexSerializer';
+
 
 
 const Editor = () => {
