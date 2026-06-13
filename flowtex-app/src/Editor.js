@@ -112,7 +112,6 @@ const Editor = () => {
   // ---- EDITOR CONFIG ----
   const editor = useEditor({
     extensions: [
-      StarterKit,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph', 'bulletList', 'orderedList'], defaultAlignment: 'left', }),
       TextStyle,
@@ -135,70 +134,43 @@ const Editor = () => {
       PageBreak,
       CommentMark,
       Indent,
+      StarterKit,
+      
     ],
     content: '<p></p>',
     editorProps: {
       handleKeyDown: (view, event) => {
+        console.log('Key pressed:', event.key);
         const mod = event.metaKey || event.ctrlKey;
 
-        // Backspace on empty aligned line → step down alignment
-        if (!mod && event.key === 'Backspace') {
-          const { state } = editor;
-          const { selection } = state;
-          if (selection.empty) {
-            const $pos = state.doc.resolve(selection.head);
-            const node = $pos.node();
-            const isEmpty =
-              node.childCount === 0 ||
-              (node.childCount === 1 &&
-                node.firstChild?.type.name === 'hardBreak' &&
-                node.textContent.trim() === '');
-            if (isEmpty && node.type.isBlock) {
-              const alignment = node.attrs?.textAlign || 'left';
-              if (alignment === 'right') {
-                event.preventDefault();
-                editor.chain().focus().setTextAlign('center').run();
-                return true;
-              } else if (alignment === 'center') {
-                event.preventDefault();
-                editor.chain().focus().setTextAlign('left').run();
-                return true;
-              }
-            }
-          }
-          return false;
-        }
-
-        // Tab/Shift+Tab – indent/outdent lists, prevent huge space
+        // Tab/Shift+Tab – indent/outdent lists, paragraphs, headings
         if (event.key === 'Tab') {
           event.preventDefault();
           const { state } = editor;
           const { selection } = state;
-          const $pos = state.doc.resolve(selection.head);
-          const node = $pos.node();
-  
-          if (node.type.name === 'listItem') {
-            if (event.shiftKey) {
-              editor.chain().focus().liftListItem('listItem').run();
-            } else {
-              editor.chain().focus().sinkListItem('listItem').run();
+
+          if (event.shiftKey) {
+            // Shift+Tab: remove up to 4 leading spaces from the current line
+            const $pos = state.doc.resolve(selection.head);
+            const node = $pos.node();
+            if (node.isTextblock) {
+              const text = node.textContent;
+              const pos = selection.head - $pos.start(); // cursor position within block
+              const lineStart = text.lastIndexOf('\n', pos - 1) + 1; // start of current line
+              const line = text.substring(lineStart, pos); // text before cursor on this line
+              const spaces = line.match(/^ {1,4}/); // leading spaces
+              if (spaces) {
+                const from = $pos.start() + lineStart;
+                const to = from + spaces[0].length;
+                editor.chain().focus().deleteRange({ from, to }).run();
+              }
             }
-            return true;
+          } else {
+            // Tab: insert 4 spaces at cursor
+            editor.chain().focus().insertContent('    ').run();
           }
-  
-          // For paragraphs and headings
-          if (['paragraph', 'heading'].includes(node.type.name)) {
-            if (event.shiftKey) {
-              editor.chain().focus().outdent().run();
-            } else {
-              editor.chain().focus().indent().run();
-            }
-            return true;
-          }
-  
-          // Default: just ignore Tab (prevent huge space)
           return true;
-        }
+      }
 
         // Alignment shortcuts (Ctrl/Cmd + L/E/R/J)
         if (!mod) return false;
@@ -226,9 +198,8 @@ const Editor = () => {
             return false;
         }
       }
-    } 
+    }
   })
-
 
   // ---- FORCE RE-RENDER ON TRANSACTION (for toolbar active states) ----
   useEffect(() => {
@@ -237,6 +208,21 @@ const Editor = () => {
     editor.on('transaction', handler);
     return () => editor.off('transaction', handler);
   }, [editor]);
+
+  useEffect(() => {
+    if (editor && isEditorReady && !showLoading) {
+      // Small delay to ensure the DOM is fully settled
+      setTimeout(() => {
+        editor.view.dom.focus();
+      }, 50);
+    }
+  }, [editor, isEditorReady, showLoading]);
+  useEffect(() => {
+    if (isEditorReady && minTimeReached && showLoading) {
+      setFadeOut(true);                     // start the fade visually
+      setShowLoading(false);                // remove from DOM immediately
+    }
+  }, [isEditorReady, minTimeReached, showLoading]);
 
   useEffect(() => {
     window.flowtexMacros = parseMacros(preamble);
