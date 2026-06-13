@@ -27,6 +27,7 @@ import {
   Highlighter, ScissorsIcon,
 } from 'lucide-react';
 import LoadingScreen from './LoadingScreen';
+import { Indent } from './IndentExtension';
 
 
 
@@ -133,6 +134,7 @@ const Editor = () => {
       SlashCommands,
       PageBreak,
       CommentMark,
+      Indent,
     ],
     content: '<p></p>',
     editorProps: {
@@ -165,6 +167,37 @@ const Editor = () => {
             }
           }
           return false;
+        }
+
+        // Tab/Shift+Tab – indent/outdent lists, prevent huge space
+        if (event.key === 'Tab') {
+          event.preventDefault();
+          const { state } = editor;
+          const { selection } = state;
+          const $pos = state.doc.resolve(selection.head);
+          const node = $pos.node();
+  
+          if (node.type.name === 'listItem') {
+            if (event.shiftKey) {
+              editor.chain().focus().liftListItem('listItem').run();
+            } else {
+              editor.chain().focus().sinkListItem('listItem').run();
+            }
+            return true;
+          }
+  
+          // For paragraphs and headings
+          if (['paragraph', 'heading'].includes(node.type.name)) {
+            if (event.shiftKey) {
+              editor.chain().focus().outdent().run();
+            } else {
+              editor.chain().focus().indent().run();
+            }
+            return true;
+          }
+  
+          // Default: just ignore Tab (prevent huge space)
+          return true;
         }
 
         // Alignment shortcuts (Ctrl/Cmd + L/E/R/J)

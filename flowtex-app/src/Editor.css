@@ -876,3 +876,12 @@ blockquote strong {
   opacity: 0 !important;
   pointer-events: none;
 }
+
+
+/*Tab Indentation*/
+.ProseMirror p[data-indent],
+.ProseMirror h1[data-indent],
+.ProseMirror h2[data-indent],
+.ProseMirror h3[data-indent] {
+  margin-left: calc(var(--indent-unit) * attr(data-indent, number));
+}
