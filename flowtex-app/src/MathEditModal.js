@@ -135,11 +135,30 @@ const symbolGroups = [
   },
 ];
 
-const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
+const commonCommands = [
+  'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'theta', 'lambda', 'mu', 'pi', 'sigma', 'omega',
+  'Gamma', 'Delta', 'Theta', 'Lambda', 'Pi', 'Sigma', 'Omega',
+  'frac', 'sqrt', 'sum', 'int', 'prod', 'lim', 'max', 'min',
+  'sin', 'cos', 'tan', 'log', 'ln', 'exp',
+  'mathbb{}', 'mathcal{}', 'mathbf{}', 'mathit{}', 'mathrm{}',
+  'Rightarrow', 'Leftarrow', 'rightarrow', 'leftarrow', 'Leftrightarrow',
+  'leq', 'geq', 'neq', 'approx', 'equiv', 'propto', 'sim',
+  'infty', 'partial', 'nabla', 'emptyset', 'forall', 'exists',
+  'in', 'notin', 'subset', 'subseteq', 'cup', 'cap',
+  'cdot', 'times', 'div', 'pm', 'mp',
+  'binom{}{}', 'vec{}', 'hat{}', 'tilde{}', 'bar{}', 'dot{}', 'ddot{}',
+];
+
+
+
+
+const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, isDisplay }) => {
   const [latex, setLatex] = useState(initialLatex || '');
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef(null);
+  const [suggestions, setSuggestions] = useState([]);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState(0);
 
   // Update preview on every change
   useEffect(() => {
@@ -188,21 +207,105 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
     }, 0);
   };
 
+  const handleLatexChange = (e) => {
+    const value = e.target.value;
+    setLatex(value);
+
+    // Check for backslash at cursor position
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = value.substring(0, cursorPos);
+    const lastBackslashIndex = textBeforeCursor.lastIndexOf('\\');
+    if (lastBackslashIndex !== -1 && lastBackslashIndex === cursorPos - 1) {
+      // Just typed a backslash – show all commands
+      setSuggestions(commonCommands);
+      setSelectedSuggestionIndex(0);
+    } else if (lastBackslashIndex !== -1) {
+      const partial = textBeforeCursor.substring(lastBackslashIndex + 1);
+      if (partial.length > 0 && !partial.includes(' ')) {
+        const filtered = commonCommands.filter(cmd => cmd.startsWith(partial));
+        setSuggestions(filtered);
+        setSelectedSuggestionIndex(0);
+      } else {
+        setSuggestions([]);
+      }
+    } else {
+      setSuggestions([]);
+    }
+  };
+
+  const insertSuggestion = (command) => {
+    const textarea = textareaRef.current;
+    const start = textarea.selectionStart;
+    const value = latex;
+    const textBefore = value.substring(0, start);
+    const lastBackslash = textBefore.lastIndexOf('\\');
+    const textAfter = value.substring(start);
+    // Replace the partial command with the full command
+    const newValue = value.substring(0, lastBackslash) + '\\' + command + ' ' + textAfter;
+    setLatex(newValue);
+    setSuggestions([]);
+    // Set cursor after the inserted command
+    setTimeout(() => {
+      const newCursorPos = lastBackslash + command.length + 2; // +2 for backslash and space
+      textarea.focus();
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
+  };
+
+  // Keyboard navigation for suggestions
+  const handleSuggestionKeyDown = (e) => {
+    if (suggestions.length === 0) return;
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => Math.min(prev + 1, suggestions.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setSelectedSuggestionIndex(prev => Math.max(prev - 1, 0));
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      insertSuggestion(suggestions[selectedSuggestionIndex]);
+    } else if (e.key === 'Escape') {
+      setSuggestions([]);
+    }
+  };
+
+
   const handleSave = () => {
     onUpdate(latex);
     onClose();
   };
 
-  // Keyboard handler: Enter = save, Escape = cancel, Shift+Enter = newline
   const handleKeyDown = (e) => {
     if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSave();
+      if (isDisplay) {
+        // In display math, Enter inserts a newline (\\)
+        e.preventDefault();
+        insertSymbol('\\\\\n'); // two backslashes for LaTeX line break
+      } else {
+        // Inline math: Enter saves
+        e.preventDefault();
+        handleSave();
+      }
+    } else if (e.key === 'Enter' && e.shiftKey) {
+      // Shift+Enter: in display math, it saves; in inline, it inserts newline
+      if (isDisplay) {
+        e.preventDefault();
+        handleSave();
+      } else {
+        e.preventDefault();
+        insertSymbol('\n');
+      }
     } else if (e.key === 'Escape') {
       e.preventDefault();
       onClose();
     }
-    // Shift+Enter will insert newline by default
+  };
+
+
+  const extractVariables = (latex) => {
+    const commands = latex.match(/\\[a-zA-Z]+/g) || [];
+    const letters = latex.match(/[a-zA-Z]/g) || [];
+    return [...new Set([...commands, ...letters])]; // unique
   };
 
   return (
@@ -231,18 +334,43 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
           </details>
         ))}
       </div>
-      <h4>Shift+Enter to go up and down the text area </h4>
-
+      <h4> "\\" for new line</h4>
+      
       {/* Editor textarea */}
-      <textarea
-        ref={textareaRef}
-        value={latex}
-        onChange={(e) => setLatex(e.target.value)}
-        onKeyDown={handleKeyDown}
-        placeholder="LaTeX code..."
-        rows={8}
-        className='math-textarea'
-      />
+      <div style={{ position: 'relative' }}>
+        <textarea
+          ref={textareaRef}
+          value={latex}
+          onChange={handleLatexChange}
+          onKeyDown={(e) => {
+            // First handle suggestion navigation (arrow keys, Enter on suggestion)
+            if (suggestions.length > 0) {
+              handleSuggestionKeyDown(e);
+              // If the suggestion handler took the event, stop here
+              if (e.defaultPrevented) return;
+            }
+            // Otherwise, handle standard keys (Enter to save, Escape to close)
+            handleKeyDown(e);
+          }}
+          placeholder="LaTeX code..."
+          rows={8}
+          className='math-textarea'
+        />
+        {suggestions.length > 0 && (
+          <div className="math-autocomplete">
+            {suggestions.map((cmd, idx) => (
+              <div
+                key={cmd}
+                className={idx === selectedSuggestionIndex ? 'selected' : ''}
+                onClick={() => insertSuggestion(cmd)}
+                onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+              >
+                \{cmd}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Live preview */}
       <div
@@ -259,7 +387,17 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose }) => {
       <div className="math-panel-actions">
         <button onClick={handleSave}>Apply (Enter)</button>
         <button onClick={onClose}>Cancel (Esc)</button>
+        <button onClick={() => {
+          const vars = extractVariables(latex);
+          const variable = prompt('Which variable? (e.g., x, \\alpha)', vars[0]);
+          if (variable && onComment) {
+            onComment(nodePos, `Variable '${variable}' in equation: ${latex}`); // we need nodePos passed
+          }
+        }}>
+          💬 Comment
+        </button>
       </div>
+
     </div>
   );
 };

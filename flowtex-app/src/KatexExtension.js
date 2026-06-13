@@ -61,6 +61,24 @@ export const KatexExtension = Node.create({
         } catch (e) {
           dom.innerHTML = `<span style="color:red;">${attrs.latex}</span>`;
         }
+        // Check if there's a red error span (KaTeX error)
+        const errorSpan = dom.querySelector('.katex-error');
+        if (errorSpan) {
+          // Remove any previous error icon
+          const existingIcon = dom.querySelector('.katex-error-icon');
+          if (!existingIcon) {
+            const icon = document.createElement('span');
+            icon.className = 'katex-error-icon';
+            icon.innerHTML = '⚠️';
+            icon.title = errorSpan.textContent || 'Unknown command';
+            icon.style.cssText = 'cursor:help; margin-left:4px; font-size:0.9em;';
+            dom.appendChild(icon);
+          }
+        } else {
+          // Remove error icon if present
+          const icon = dom.querySelector('.katex-error-icon');
+          if (icon) icon.remove();
+        }
       };
 
       render(node.attrs);
@@ -69,7 +87,8 @@ export const KatexExtension = Node.create({
         const pos = getPos?.();
         if (pos !== undefined && window.flowtexMathEdit) {
           e.stopPropagation();
-          window.flowtexMathEdit(pos, node.attrs.latex, false);
+          // Pass getPos as a function, along with initial latex and isDisplay flag
+          window.flowtexMathEdit(() => getPos(), node.attrs.latex, false);
         }
       });
 

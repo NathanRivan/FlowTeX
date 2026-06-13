@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import {Plus, Minus} from 'lucide-react';
 
 const DEFAULT_SIZE = 12;
 
@@ -96,7 +97,7 @@ const FontSizeControl = ({ editor }) => {
         className="font-size-btn"
         title="Decrease font size"
       >
-        −
+        <Minus size={16}/>
       </button>
       <input
         type="text"
@@ -114,7 +115,7 @@ const FontSizeControl = ({ editor }) => {
         className="font-size-btn"
         title="Increase font size"
       >
-        +
+        <Plus size={16}/>
       </button>
     </div>
   );

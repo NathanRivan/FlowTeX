@@ -54,10 +54,10 @@ export const KatexDisplayExtension = Node.create({
       render(node.attrs);
 
       dom.addEventListener('click', (e) => {
-        const pos = getPos?.();
-        if (pos !== undefined && window.flowtexMathEdit) {
+        if (typeof getPos === 'function' && window.flowtexMathEdit) {
           e.stopPropagation();
-          window.flowtexMathEdit(pos, node.attrs.latex, true);
+          // Pass a callback that returns the current position, not the position itself
+          window.flowtexMathEdit(() => getPos(), node.attrs.latex, true);
         }
       });
 

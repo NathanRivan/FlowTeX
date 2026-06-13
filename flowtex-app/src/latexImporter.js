@@ -2,6 +2,7 @@
  * Converts a raw LaTeX string into an HTML string that
  * Tiptap’s StarterKit and custom math nodes can parse.
  */
+import { expandMacros } from './macroExpander';
 export function importLaTeX(latex) {
   if (!latex) return '';
 
@@ -14,6 +15,9 @@ export function importLaTeX(latex) {
   } else {
     const bodyStart = html.search(/\\(section|chapter|subsection|paragraph)/);
     if (bodyStart > 0) html = html.substring(bodyStart);
+  }
+  if (window.flowtexMacros) {
+    html = expandMacros(html, window.flowtexMacros);
   }
 
   // 2. Remove comments (lines starting with %)
@@ -97,6 +101,12 @@ export function importLaTeX(latex) {
       return `<blockquote><strong>${env}:</strong>${label} ${content.trim()}</blockquote>`;
     });
   });
+  
+  // 11b. Abstract environment – keep content with a bold label
+  html = html.replace(
+    /\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/g,
+    (_, content) => `<p><strong>Abstract:</strong> ${content.trim()}</p>`
+  );
 
   // 12. Cross‑references that remain outside theorems
   html = html.replace(/\\label\{([^}]+)\}/g, '[label: $1]');
