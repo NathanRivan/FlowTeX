@@ -334,54 +334,50 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, is
           </details>
         ))}
       </div>
-      <h4> "\\" for new line</h4>
-      
-      {/* Editor textarea */}
-      <div style={{ position: 'relative' }}>
-        <textarea
-          ref={textareaRef}
-          value={latex}
-          onChange={handleLatexChange}
-          onKeyDown={(e) => {
-            // First handle suggestion navigation (arrow keys, Enter on suggestion)
-            if (suggestions.length > 0) {
-              handleSuggestionKeyDown(e);
-              // If the suggestion handler took the event, stop here
-              if (e.defaultPrevented) return;
-            }
-            // Otherwise, handle standard keys (Enter to save, Escape to close)
-            handleKeyDown(e);
-          }}
-          placeholder="LaTeX code..."
-          rows={8}
-          className='math-textarea'
-        />
-        {suggestions.length > 0 && (
-          <div className="math-autocomplete">
-            {suggestions.map((cmd, idx) => (
-              <div
-                key={cmd}
-                className={idx === selectedSuggestionIndex ? 'selected' : ''}
-                onClick={() => insertSuggestion(cmd)}
-                onMouseEnter={() => setSelectedSuggestionIndex(idx)}
-              >
-                \{cmd}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+      <div className="math-editor-body">
+        <p className="math-hint">Type <code>\\</code> to autocomplete commands. Use <code>\\\\</code> for a new line.</p>
 
-      {/* Live preview */}
-      <div
-        className="math-preview"
-        style={{ padding: 10, border: '1px solid #ddd', marginTop: 10, minHeight: 40 }}
-      >
-        {loading ? (
-          <div className="math-preview-loading">Rendering…</div>
-        ) : (
-          <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
-        )}
+        {/* Editor textarea */}
+        <div style={{ position: 'relative' }}>
+          <textarea
+            ref={textareaRef}
+            value={latex}
+            onChange={handleLatexChange}
+            onKeyDown={(e) => {
+              if (suggestions.length > 0) {
+                handleSuggestionKeyDown(e);
+                if (e.defaultPrevented) return;
+              }
+              handleKeyDown(e);
+            }}
+            placeholder="LaTeX code…"
+            rows={6}
+            className="math-textarea"
+          />
+          {suggestions.length > 0 && (
+            <div className="math-autocomplete">
+              {suggestions.map((cmd, idx) => (
+                <div
+                  key={cmd}
+                  className={idx === selectedSuggestionIndex ? 'selected' : ''}
+                  onClick={() => insertSuggestion(cmd)}
+                  onMouseEnter={() => setSelectedSuggestionIndex(idx)}
+                >
+                  \{cmd}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Live preview */}
+        <div className="math-preview">
+          {loading ? (
+            <div className="math-preview-loading">Rendering…</div>
+          ) : (
+            <div dangerouslySetInnerHTML={{ __html: previewHtml }} />
+          )}
+        </div>
       </div>
 
       <div className="math-panel-actions">
@@ -391,10 +387,10 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, is
           const vars = extractVariables(latex);
           const variable = prompt('Which variable? (e.g., x, \\alpha)', vars[0]);
           if (variable && onComment) {
-            onComment(nodePos, `Variable '${variable}' in equation: ${latex}`); // we need nodePos passed
+            onComment(nodePos, `Variable '${variable}' in equation: ${latex}`);
           }
         }}>
-          💬 Comment
+          Comment
         </button>
       </div>
 

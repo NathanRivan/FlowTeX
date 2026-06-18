@@ -140,7 +140,9 @@ export function importLaTeX(latex) {
 
   html = html.replace(/<p>\s*<\/p>/g, '');
 
-  return html;
+  // Wrap in a page node so doc > page+ schema is satisfied.
+  // The AutoPageBreak plugin will split into multiple pages if content overflows.
+  return `<div data-type="page">${html}</div>`;
 }
 
 // Helper to escape double quotes inside attribute values

@@ -95,6 +95,7 @@ function renderInline(node) {
 function renderNode(node) {
   switch (node.type) {
     case 'doc':
+    case 'page':
       return (node.content || []).map(renderNode).join('\n\n');
 
     case 'heading': {

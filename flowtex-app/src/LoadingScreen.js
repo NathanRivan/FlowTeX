@@ -5,7 +5,7 @@ const LoadingScreen = () => {
     <div style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
-      background: '#f1f3f4',
+      background: '#f0f2f5',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',

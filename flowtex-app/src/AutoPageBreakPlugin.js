@@ -1,107 +1,200 @@
 import { Plugin, PluginKey } from 'prosemirror-state';
-import { Node } from 'prosemirror-model';
 
-const PAGE_HEIGHT_PX = 1056;   // 11 inches at 96 dpi
-const DEBOUNCE = 200;          // milliseconds
+const PAGE_HEIGHT = 1056; // 11in at 96 dpi
+
+export const paginationKey = new PluginKey('pagination');
 
 export const autoPageBreakPlugin = () => {
-  const pluginKey = new PluginKey('autoPageBreak');
+  let rafId = null;
 
-  let timeout = null;
-
-  // Groups top-level blocks into pages based on viewport coordinates
-  function paginate(view) {
-    const { state, dispatch } = view;
-    const { doc } = state;
-
-    // Gather all top-level blocks (exclude existing page and pageBreak nodes)
-    const topBlocks = [];
-    doc.content.forEach((node, offset) => {
-      if (node.type.name === 'page' || node.type.name === 'pageBreak') return;
-      topBlocks.push({ node, pos: offset + 1 });
-    });
-
-    if (topBlocks.length === 0) return;
-
-    // Measure block positions (viewport coordinates)
-    const blocksWithCoords = topBlocks.map(({ node, pos }) => {
-      const start = view.coordsAtPos(pos);
-      const end = view.coordsAtPos(pos + node.nodeSize);
-      return {
-        node,
-        pos,
-        top: start ? start.top : 0,
-        bottom: end ? end.bottom : 0,
-      };
-    });
-
-    // Group into pages
+  function buildPageMap(doc, pageEls) {
     const pages = [];
-    let currentPageBlocks = [];
-    let pageStartTop = null;
+    let pos = 0;
+    for (let i = 0; i < doc.childCount; i++) {
+      const node = doc.child(i);
+      const contentEl = pageEls[i]?.querySelector('.page-content');
+      pages.push({ index: i, pos, node, contentEl });
+      pos += node.nodeSize;
+    }
+    return pages;
+  }
 
-    for (const block of blocksWithCoords) {
-      if (pageStartTop === null) {
-        // first block of a page
-        pageStartTop = block.top;
-        currentPageBlocks.push(block);
-      } else if (block.bottom > pageStartTop + PAGE_HEIGHT_PX) {
-        // block overflows → finish current page and start new one
-        pages.push(currentPageBlocks);
-        currentPageBlocks = [block];
-        pageStartTop = block.top;
+  function repaginate(view) {
+    const { state, dispatch } = view;
+    const { doc, schema } = state;
+
+    if (!schema.nodes.page || view.composing) return;
+
+    const pageEls = Array.from(view.dom.querySelectorAll('.page-node'));
+    const pages = buildPageMap(doc, pageEls);
+
+    // --- 1. Explicit page breaks: find a pageBreak node inside a page and split there ---
+    for (const { node: pageNode, pos: pagePos } of pages) {
+      let breakOffset = null;
+      pageNode.forEach((child, offset) => {
+        if (child.type.name === 'pageBreak' && breakOffset === null) {
+          breakOffset = offset;
+        }
+      });
+
+      // Skip if break is first child (nothing before it to keep in current page).
+      if (breakOffset === null || breakOffset === 0) continue;
+
+      // Collect all blocks that come after the break node.
+      const blocksAfter = [];
+      pageNode.forEach((child, offset) => {
+        if (offset > breakOffset) blocksAfter.push(child);
+      });
+
+      // Delete from the break node through the end of the page's content.
+      const breakNodeFrom = pagePos + 1 + breakOffset;
+      const contentEnd  = pagePos + 1 + pageNode.content.size;
+
+      let tr = state.tr;
+      tr = tr.delete(breakNodeFrom, contentEnd);
+
+      const deletedSize     = contentEnd - breakNodeFrom;
+      const newPageInsertAt = pagePos + pageNode.nodeSize - deletedSize;
+      const newPageContent  = blocksAfter.length > 0
+        ? blocksAfter
+        : [schema.nodes.paragraph.create()];
+      const newPage = schema.nodes.page.create({}, newPageContent);
+      tr = tr.insert(newPageInsertAt, newPage);
+
+      tr.setMeta('addToHistory', false);
+      try {
+        const { from, to } = state.selection;
+        tr = tr.setSelection(
+          state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
+        );
+      } catch {}
+      tr.scrollIntoView();
+      dispatch(tr);
+      return;
+    }
+
+    // --- 2. Overflow: move last block of overflowing page to the next page ---
+    const overflow = pages.find(
+      p => p.contentEl && p.contentEl.scrollHeight > PAGE_HEIGHT && p.node.childCount > 1
+    );
+
+    if (overflow) {
+      const { node: pageNode, pos: pagePos } = overflow;
+      const lastBlock       = pageNode.lastChild;
+      const lastBlockOffset = pageNode.content.size - lastBlock.nodeSize;
+      const lastBlockFrom   = pagePos + 1 + lastBlockOffset;
+      const lastBlockTo     = lastBlockFrom + lastBlock.nodeSize;
+      const nextPage        = pages.find(p => p.index === overflow.index + 1);
+
+      let tr = state.tr;
+      if (nextPage) {
+        tr = tr.delete(lastBlockFrom, lastBlockTo);
+        const insertAt = nextPage.pos - lastBlock.nodeSize + 1;
+        tr = tr.insert(insertAt, lastBlock);
       } else {
-        currentPageBlocks.push(block);
+        tr = tr.delete(lastBlockFrom, lastBlockTo);
+        const newPage = schema.nodes.page.create({}, [lastBlock.copy(lastBlock.content)]);
+        tr = tr.insert(pagePos + pageNode.nodeSize - lastBlock.nodeSize, newPage);
+      }
+
+      tr.setMeta('addToHistory', false);
+      try {
+        const { from, to } = state.selection;
+        tr = tr.setSelection(
+          state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
+        );
+      } catch {}
+      tr.scrollIntoView();
+      dispatch(tr);
+      return;
+    }
+
+    // --- 3. Empty page removal: drop pages that contain only an empty paragraph,
+    //        but only when the cursor is not in them (avoid eating the user's page). ---
+    if (doc.childCount > 1) {
+      const { from: selFrom } = state.selection;
+      let pos = 0;
+      for (let i = 0; i < doc.childCount; i++) {
+        const page    = doc.child(i);
+        const pageEnd = pos + page.nodeSize;
+        if (
+          page.childCount === 1 &&
+          page.firstChild.type.name === 'paragraph' &&
+          page.firstChild.content.size === 0
+        ) {
+          const cursorInPage = selFrom > pos && selFrom < pageEnd;
+          if (!cursorInPage) {
+            const tr = state.tr.delete(pos, pageEnd);
+            tr.setMeta('addToHistory', false);
+            try {
+              const { from, to } = state.selection;
+              tr.setSelection(
+                state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
+              );
+            } catch {}
+            tr.scrollIntoView();
+            dispatch(tr);
+            return;
+          }
+        }
+        pos += page.nodeSize;
       }
     }
-    if (currentPageBlocks.length > 0) pages.push(currentPageBlocks);
 
-    // Build a new document with page wrappers
-    const pageNodes = pages.map(pageBlocks => {
-      const content = pageBlocks.map(b => b.node);
-      return state.schema.nodes.page.create({}, content);
+    // --- 4. Compaction: pull first block from next page if it fits in the current page.
+    //        Add ~24 px to the block's height to account for inter-paragraph margins so
+    //        we don't oscillate between compact and overflow. ---
+    const underfull = pages.find((p, i) => {
+      if (!p.contentEl) return false;
+      const next = pages[i + 1];
+      // Require ≥ 2 blocks in the next page: pulling the only block would leave it
+      // empty and violate content: 'block+'.
+      if (!next || !next.contentEl || next.node.childCount <= 1) return false;
+
+      const firstBlockEl = next.contentEl.firstElementChild;
+      if (!firstBlockEl) return false;
+
+      const firstBlockHeight = firstBlockEl.getBoundingClientRect().height + 24;
+      return p.contentEl.scrollHeight + firstBlockHeight <= PAGE_HEIGHT;
     });
 
-    const newDoc = state.schema.nodes.doc.create({}, pageNodes);
+    if (underfull) {
+      const nextPage      = pages[underfull.index + 1];
+      const firstBlock    = nextPage.node.firstChild;
+      const firstBlockFrom = nextPage.pos + 1;
+      const firstBlockTo   = firstBlockFrom + firstBlock.nodeSize;
+      // Insert before the current page's closing token (= end of its content).
+      const insertAt = underfull.pos + underfull.node.nodeSize - 1;
 
-    // Preserve selection
-    let tr = state.tr.replaceWith(0, state.doc.content.size, newDoc.content);
-    tr.setMeta('addToHistory', false);   // don't clutter undo history
+      let tr = state.tr;
+      // Delete from the next page first (higher position → doesn't shift insertAt).
+      tr = tr.delete(firstBlockFrom, firstBlockTo);
+      tr = tr.insert(insertAt, firstBlock);
 
-    // Attempt to restore selection
-    const { from, to } = state.selection;
-    try {
-      const mappedFrom = tr.mapping.map(from);
-      const mappedTo = tr.mapping.map(to);
-      tr = tr.setSelection(state.selection.constructor.create(tr.doc, mappedFrom, mappedTo));
-    } catch (e) {
-      // fallback: put cursor at start
-      tr = tr.setSelection(state.selection.constructor.atStart(tr.doc));
+      tr.setMeta('addToHistory', false);
+      try {
+        const { from, to } = state.selection;
+        tr = tr.setSelection(
+          state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
+        );
+      } catch {}
+      tr.scrollIntoView();
+      dispatch(tr);
     }
-
-    dispatch(tr);
   }
 
   return new Plugin({
-    key: pluginKey,
-    view(editorView) {
-      const run = () => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => {
-          // Avoid running while a composition is active
-          if (editorView.composing) return;
-          paginate(editorView);
-        }, DEBOUNCE);
-      };
-
-      // Initial pagination after editor is ready
-      run();
-
+    key: paginationKey,
+    view(view) {
       return {
-        update(view, prevState) {
-          if (view.state.doc !== prevState.doc) {
-            run();
-          }
+        update(v, prev) {
+          if (v.state.doc === prev.doc) return;
+          cancelAnimationFrame(rafId);
+          // RAF ensures DOM is laid out before we measure scrollHeight.
+          rafId = requestAnimationFrame(() => repaginate(v));
+        },
+        destroy() {
+          cancelAnimationFrame(rafId);
         },
       };
     },
