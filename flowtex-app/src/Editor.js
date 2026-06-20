@@ -18,19 +18,22 @@ import FontSizeControl from './FontSizeControl';
 import { importLaTeX } from './latexImporter';
 import { parseMacros } from './macroExpander';
 import PreambleModal from './PreambleModal';
+import PageSettingsModal, { DEFAULT_PAGE_SETTINGS, PAGE_SIZES } from './PageSettingsModal';
 import { CommentMark } from './CommentMark';
 import CommentSidebar from './CommentSidebar';
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   FileText, Upload, Printer, Wrench, MessageSquare,
-  Highlighter, ScissorsIcon,
+  Highlighter, ScissorsIcon, LayoutTemplate, Columns2,
 } from 'lucide-react';
 import LoadingScreen from './LoadingScreen';
+import MathLivePreview from './MathLivePreview';
 import { Indent } from './IndentExtension';
 import { PagedDocument } from './PagedDocument';
 import { PageNode } from './PageNode';
 import { AutoPageBreak } from './AutoPageBreakExtension';
+import { ColumnSpan } from './ColumnSpanExtension';
 
 // Initial document: a single page with one empty paragraph
 const INITIAL_DOC = {
@@ -54,6 +57,9 @@ const Editor = () => {
   const [mathModal, setMathModal] = useState({
     open: false, latex: '', nodePos: null,
   });
+  const [mathZone, setMathZone] = useState({
+    active: false, latex: '', coords: null, suggestions: [], selectedIdx: 0,
+  });
 
   const handlePrintPDF = () => setTimeout(() => window.print(), 0);
 
@@ -65,6 +71,8 @@ const Editor = () => {
     }]);
   };
 
+  const [pageSettings, setPageSettings] = useState(DEFAULT_PAGE_SETTINGS);
+  const [showPageSettings, setShowPageSettings] = useState(false);
   const [preamble, setPreamble] = useState(false);
   const [showPreamble, setShowPreamble] = useState(false);
   const [commentThreads, setCommentThreads] = useState([]);
@@ -118,6 +126,7 @@ const Editor = () => {
       PageBreak,
       CommentMark,
       Indent,
+      ColumnSpan,
       StarterKit.configure({ document: false }), // our PagedDocument handles the doc node
     ],
     content: INITIAL_DOC,
@@ -197,6 +206,26 @@ const Editor = () => {
   }, [preamble]);
 
   useEffect(() => {
+    const { pageSize, marginTop, marginBottom, marginLeft, marginRight, fontSize, lineSpacing, columns } = pageSettings;
+    const size = PAGE_SIZES[pageSize];
+    const root = document.documentElement;
+    root.style.setProperty('--page-width',         size.width);
+    root.style.setProperty('--page-height',        size.height);
+    root.style.setProperty('--page-margin-top',    `${marginTop}in`);
+    root.style.setProperty('--page-margin-bottom', `${marginBottom}in`);
+    root.style.setProperty('--page-margin-left',   `${marginLeft}in`);
+    root.style.setProperty('--page-margin-right',  `${marginRight}in`);
+    root.style.setProperty('--page-font-size',     `${fontSize}pt`);
+    root.style.setProperty('--page-line-spacing',  lineSpacing);
+    root.setAttribute('data-columns', String(columns));
+    window.flowtexPageSettings = {
+      pageHeightPx:   size.heightPx,
+      marginBottomPx: Math.round(marginBottom * 96),
+      columns,
+    };
+  }, [pageSettings]);
+
+  useEffect(() => {
     if (!editor) return;
     const dom = editor.view.dom;
     const handler = (e) => {
@@ -245,6 +274,12 @@ const Editor = () => {
     };
     return () => { delete window.flowtexMathEdit; };
   }, [editor]);
+
+  useEffect(() => {
+    window.flowtexMathZoneUpdate = (update) =>
+      setTimeout(() => setMathZone(prev => ({ ...prev, ...update })), 0);
+    return () => { delete window.flowtexMathZoneUpdate; };
+  }, []);
 
   useEffect(() => {
     if (editor && !isEditorReady) setIsEditorReady(true);
@@ -344,6 +379,17 @@ const Editor = () => {
                   }} title="Import .tex"><Upload size={16} /></button>
                   <button onClick={handlePrintPDF} title="Print PDF"><Printer size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPreamble(true)} title="Preamble"><Wrench size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPageSettings(true)} title="Page Settings"><LayoutTemplate size={16} /></button>
+                  {pageSettings.columns === 2 && (
+                    <button
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => editor.chain().focus().toggleColumnSpan().run()}
+                      className={editor.isActive({ columnSpan: true }) ? 'active' : ''}
+                      title="Span both columns"
+                    >
+                      <Columns2 size={16} />
+                    </button>
+                  )}
                 </div>
 
                 <div className="toolbar-group">
@@ -415,6 +461,14 @@ const Editor = () => {
                 onClose={() => setMathModal({ open: false, latex: '', nodePos: null })}
                 onComment={handleMathComment}
                 nodePos={mathModal.nodePos}
+              />
+            )}
+
+            {showPageSettings && (
+              <PageSettingsModal
+                settings={pageSettings}
+                onChange={setPageSettings}
+                onClose={() => setShowPageSettings(false)}
               />
             )}
 
@@ -491,6 +545,14 @@ const Editor = () => {
               💬
             </button>
           </div>
+
+          <MathLivePreview
+            active={mathZone.active}
+            latex={mathZone.latex}
+            coords={mathZone.coords}
+            suggestions={mathZone.suggestions}
+            selectedIdx={mathZone.selectedIdx}
+          />
 
           {showComments && (
             <CommentSidebar

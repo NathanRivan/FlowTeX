@@ -2,8 +2,8 @@ import { Extension } from '@tiptap/core';
 import { TextSelection } from 'prosemirror-state';
 import { autoPageBreakPlugin } from './AutoPageBreakPlugin';
 
-// 1in bottom padding at 96 dpi.  Used to find where the content area ends.
-const BOTTOM_PADDING_PX = 96;
+// Read live so margin changes take effect immediately.
+const getBottomPaddingPx = () => window.flowtexPageSettings?.marginBottomPx ?? 96;
 // If the cursor is within this many px of the content-area bottom, treat the
 // page as "full" so Enter routes the new paragraph to the next page.
 const NEAR_BOTTOM_PX = 40;
@@ -24,6 +24,12 @@ export const AutoPageBreak = Extension.create({
       'Enter': ({ editor }) => {
         const { state } = editor;
         const { $from, empty } = state.selection;
+
+        // In two-column mode the new paragraph must be allowed to flow into the
+        // right column naturally (CSS column-fill: auto handles that). Routing it
+        // to the next page here would skip the right column, so defer to default
+        // behavior + the RAF overflow pass (which detects a full 3rd column).
+        if ((window.flowtexPageSettings?.columns ?? 1) === 2) return false;
 
         // Plain cursor only (no selection range).
         if (!empty) return false;
@@ -52,7 +58,7 @@ export const AutoPageBreak = Extension.create({
         const cursorCoords  = editor.view.coordsAtPos($from.pos);
         const contentRect   = contentEl.getBoundingClientRect();
         // contentAreaBottom = bottom of the element minus its bottom padding.
-        const contentAreaBottom = contentRect.bottom - BOTTOM_PADDING_PX;
+        const contentAreaBottom = contentRect.bottom - getBottomPaddingPx();
         const distanceFromBottom = contentAreaBottom - cursorCoords.bottom;
         if (distanceFromBottom >= NEAR_BOTTOM_PX) return false; // still room; let default handle it
 

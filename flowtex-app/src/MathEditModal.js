@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import katex from 'katex';
 import { preprocessMathForDisplay } from './mathPreprocessor';
+import { MATH_COMMANDS, commandName } from './mathCommands';
 
 // --- Expanded Symbol Set (organized) ---
 const symbolGroups = [
@@ -135,19 +136,6 @@ const symbolGroups = [
   },
 ];
 
-const commonCommands = [
-  'alpha', 'beta', 'gamma', 'delta', 'epsilon', 'theta', 'lambda', 'mu', 'pi', 'sigma', 'omega',
-  'Gamma', 'Delta', 'Theta', 'Lambda', 'Pi', 'Sigma', 'Omega',
-  'frac', 'sqrt', 'sum', 'int', 'prod', 'lim', 'max', 'min',
-  'sin', 'cos', 'tan', 'log', 'ln', 'exp',
-  'mathbb{}', 'mathcal{}', 'mathbf{}', 'mathit{}', 'mathrm{}',
-  'Rightarrow', 'Leftarrow', 'rightarrow', 'leftarrow', 'Leftrightarrow',
-  'leq', 'geq', 'neq', 'approx', 'equiv', 'propto', 'sim',
-  'infty', 'partial', 'nabla', 'emptyset', 'forall', 'exists',
-  'in', 'notin', 'subset', 'subseteq', 'cup', 'cap',
-  'cdot', 'times', 'div', 'pm', 'mp',
-  'binom{}{}', 'vec{}', 'hat{}', 'tilde{}', 'bar{}', 'dot{}', 'ddot{}',
-];
 
 
 
@@ -217,12 +205,12 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, is
     const lastBackslashIndex = textBeforeCursor.lastIndexOf('\\');
     if (lastBackslashIndex !== -1 && lastBackslashIndex === cursorPos - 1) {
       // Just typed a backslash – show all commands
-      setSuggestions(commonCommands);
+      setSuggestions(MATH_COMMANDS);
       setSelectedSuggestionIndex(0);
     } else if (lastBackslashIndex !== -1) {
       const partial = textBeforeCursor.substring(lastBackslashIndex + 1);
       if (partial.length > 0 && !partial.includes(' ')) {
-        const filtered = commonCommands.filter(cmd => cmd.startsWith(partial));
+        const filtered = MATH_COMMANDS.filter(cmd => commandName(cmd).startsWith(partial));
         setSuggestions(filtered);
         setSelectedSuggestionIndex(0);
       } else {

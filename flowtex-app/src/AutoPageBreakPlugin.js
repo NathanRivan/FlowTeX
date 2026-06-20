@@ -1,8 +1,49 @@
 import { Plugin, PluginKey } from 'prosemirror-state';
 
-const PAGE_HEIGHT = 1056; // 11in at 96 dpi
+// Read live from window so page size changes take effect without a reload.
+const getPageHeight = () => window.flowtexPageSettings?.pageHeightPx ?? 1056;
+const getColumns   = () => window.flowtexPageSettings?.columns ?? 1;
 
 export const paginationKey = new PluginKey('pagination');
+
+// In single-column mode a page overflows when its content is taller than the
+// page.  In two-column (column-fill: auto) mode the content height is locked,
+// so instead the browser spills into a 3rd column when both columns are full —
+// that makes scrollWidth exceed clientWidth, which is our overflow signal.
+function pageOverflows(contentEl, columns, pageHeight) {
+  if (!contentEl) return false;
+  if (columns === 2) return contentEl.scrollWidth > contentEl.clientWidth + 10;
+  return contentEl.scrollHeight > pageHeight;
+}
+
+// Estimate the free vertical space (px) available for new content in a
+// two-column page: space left below the last block in its column, plus the
+// whole right column if the last block is still in the left one.
+function freeSpaceTwoCol(contentEl) {
+  const cs        = getComputedStyle(contentEl);
+  const padTop    = parseFloat(cs.paddingTop)    || 0;
+  const padBottom = parseFloat(cs.paddingBottom) || 0;
+  const padLeft   = parseFloat(cs.paddingLeft)   || 0;
+  const padRight  = parseFloat(cs.paddingRight)  || 0;
+  const gap       = parseFloat(cs.columnGap)     || 0;
+
+  const rect          = contentEl.getBoundingClientRect();
+  const colAreaTop    = rect.top + padTop;
+  const colAreaBottom = rect.bottom - padBottom;
+  const columnHeight  = colAreaBottom - colAreaTop;
+  const innerWidth    = contentEl.clientWidth - padLeft - padRight;
+  const colWidth      = (innerWidth - gap) / 2;
+  const col2Left      = rect.left + padLeft + colWidth + gap;
+
+  const kids = contentEl.children;
+  if (!kids.length) return columnHeight * 2;
+
+  const last        = kids[kids.length - 1].getBoundingClientRect();
+  const inRightCol  = last.left >= col2Left - 2;
+  const freeBelow   = Math.max(0, colAreaBottom - last.bottom);
+
+  return inRightCol ? freeBelow : freeBelow + columnHeight;
+}
 
 export const autoPageBreakPlugin = () => {
   let rafId = null;
@@ -74,8 +115,10 @@ export const autoPageBreakPlugin = () => {
     }
 
     // --- 2. Overflow: move last block of overflowing page to the next page ---
+    const pageHeight = getPageHeight();
+    const columns    = getColumns();
     const overflow = pages.find(
-      p => p.contentEl && p.contentEl.scrollHeight > PAGE_HEIGHT && p.node.childCount > 1
+      p => pageOverflows(p.contentEl, columns, pageHeight) && p.node.childCount > 1
     );
 
     if (overflow) {
@@ -143,7 +186,8 @@ export const autoPageBreakPlugin = () => {
 
     // --- 4. Compaction: pull first block from next page if it fits in the current page.
     //        Add ~24 px to the block's height to account for inter-paragraph margins so
-    //        we don't oscillate between compact and overflow. ---
+    //        we don't oscillate between compact and overflow.  The hysteresis (extra
+    //        30 px required in two-column mode) prevents push/pull oscillation. ---
     const underfull = pages.find((p, i) => {
       if (!p.contentEl) return false;
       const next = pages[i + 1];
@@ -155,7 +199,13 @@ export const autoPageBreakPlugin = () => {
       if (!firstBlockEl) return false;
 
       const firstBlockHeight = firstBlockEl.getBoundingClientRect().height + 24;
-      return p.contentEl.scrollHeight + firstBlockHeight <= PAGE_HEIGHT;
+
+      if (columns === 2) {
+        // Never pull into a page that is already overflowing.
+        if (pageOverflows(p.contentEl, columns, pageHeight)) return false;
+        return freeSpaceTwoCol(p.contentEl) >= firstBlockHeight + 30;
+      }
+      return p.contentEl.scrollHeight + firstBlockHeight <= pageHeight;
     });
 
     if (underfull) {

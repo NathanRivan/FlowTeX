@@ -221,7 +221,7 @@ body {
  * The gap between cards is pure CSS margin — nothing to type into.
  */
 .page-node {
-  width: 8.5in;
+  width: var(--page-width, 8.5in);
   background: white;
   box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 8px 32px rgba(0,0,0,0.06);
   border-radius: 2px;
@@ -230,17 +230,33 @@ body {
 }
 
 .page-content {
-  padding: 1in;
-  /* box-sizing: border-box means this 11in includes the 2in of padding,
-     giving exactly 9in of usable content area.  Pages always appear full-height. */
-  min-height: 11in;
-  box-sizing: border-box;
+  padding: var(--page-margin-top, 1in) var(--page-margin-right, 1in) var(--page-margin-bottom, 1in) var(--page-margin-left, 1in);
+  /* min-height fills to a full page: total page height minus top+bottom margins. */
+  min-height: calc(var(--page-height, 11in) - var(--page-margin-top, 1in) - var(--page-margin-bottom, 1in));
+  box-sizing: content-box;
   font-family: 'Computer Modern Serif', serif;
-  font-size: 12pt;
-  line-height: 1.6;
+  font-size: var(--page-font-size, 12pt);
+  line-height: var(--page-line-spacing, 1.5);
   letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
+}
+
+/* ===== TWO-COLUMN MODE ===== */
+/* column-fill: auto = newspaper/journal flow: the LEFT column fills to the
+   bottom of the page first, then text continues at the TOP of the RIGHT
+   column (IEEE / ACM style).  The content box is locked to exactly the page's
+   content-area height so each column is one page tall; overflow:hidden clips
+   any 3rd column that the browser creates when both columns are full.
+   The pagination engine detects that overflow via scrollWidth > clientWidth
+   and moves the spilled block(s) onto the next page.                       */
+:root[data-columns="2"] .page-content {
+  column-count: 2;
+  column-gap: 0.25in;
+  column-fill: auto;
+  column-rule: 1px solid var(--border-light);
+  height: calc(var(--page-height, 11in) - var(--page-margin-top, 1in) - var(--page-margin-bottom, 1in));
+  overflow: hidden;
 }
 
 /* ===== BLOCKQUOTE ===== */
@@ -707,6 +723,349 @@ body {
 
 .comment-thread:hover { background: var(--border-light); }
 
+/* ===== MATH LIVE PREVIEW OVERLAY ===== */
+.math-live-container {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  pointer-events: auto;
+  filter: drop-shadow(0 4px 16px rgba(0,0,0,0.14));
+}
+
+/* Autocomplete dropdown */
+.math-live-ac {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  min-width: 200px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-family: 'Courier New', monospace;
+  font-size: 13px;
+}
+
+.math-live-ac-item {
+  padding: 5px 10px;
+  cursor: pointer;
+  color: var(--text-primary);
+  transition: background 0.08s;
+  white-space: nowrap;
+}
+
+.math-live-ac-item:hover,
+.math-live-ac-item.selected {
+  background: var(--accent-bg);
+  color: var(--accent);
+}
+
+.math-live-ac-cmd {
+  font-weight: 500;
+}
+
+.math-live-ac-hint {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  background: var(--border-light);
+  border-top: 1px solid var(--border);
+  font-family: -apple-system, sans-serif;
+}
+
+/* Live preview card */
+.math-live-preview {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 8px 12px;
+  min-width: 140px;
+  max-width: 360px;
+}
+
+.math-live-preview-inner {
+  min-height: 24px;
+  display: flex;
+  align-items: center;
+  overflow-x: auto;
+}
+
+.math-live-placeholder {
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-family: -apple-system, sans-serif;
+  font-style: italic;
+}
+
+.math-live-preview-hint {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  font-family: -apple-system, sans-serif;
+  border-top: 1px solid var(--border-light);
+  padding-top: 4px;
+}
+
+.math-live-error {
+  color: #dc2626;
+  font-size: 12px;
+  font-family: -apple-system, sans-serif;
+}
+
+/* ===== PAGE SETTINGS MODAL ===== */
+.ps-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  z-index: 9000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ps-modal {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  width: 380px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  font-family: -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+.ps-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.ps-header h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.ps-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font-size: 16px;
+  padding: 4px 6px;
+  border-radius: var(--radius-sm);
+  line-height: 1;
+}
+
+.ps-close:hover { background: var(--hover-bg); color: var(--text-primary); }
+
+.ps-body {
+  overflow-y: auto;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.ps-section { display: flex; flex-direction: column; gap: 8px; }
+
+.ps-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+/* Presets */
+.ps-presets {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.ps-preset-btn {
+  padding: 5px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: background 0.1s, border-color 0.1s;
+}
+
+.ps-preset-btn:hover {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* Page size */
+.ps-select {
+  width: 100%;
+  padding: 7px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  font-size: 13px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.ps-select:focus { outline: none; border-color: var(--accent); }
+
+/* Margins visual layout */
+.ps-margins {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.ps-margins-top,
+.ps-margins-bottom {
+  display: flex;
+  justify-content: center;
+}
+
+.ps-margins-middle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.ps-margins-page-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ps-page-thumb {
+  width: 48px;
+  height: 62px;
+  border: 2px solid var(--border);
+  border-radius: 2px;
+  background: white;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Number inputs */
+.ps-num-wrap {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.ps-num-input {
+  width: 58px;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  text-align: center;
+}
+
+.ps-num-input:focus { outline: none; border-color: var(--accent); }
+
+.ps-unit {
+  font-size: 12px;
+  color: var(--text-secondary);
+  min-width: 28px;
+}
+
+/* Typography rows */
+.ps-typo-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+/* Footer */
+.ps-footer {
+  padding: 12px 18px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: flex-end;
+  flex-shrink: 0;
+}
+
+.ps-done-btn {
+  padding: 7px 20px;
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ps-done-btn:hover { background: #1565c0; }
+
+/* Column toggle buttons */
+.ps-columns-toggle {
+  display: flex;
+  gap: 8px;
+}
+
+.ps-col-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 8px;
+  border: 2px solid var(--border);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 12px;
+  color: var(--text-secondary);
+  transition: border-color 0.15s, color 0.15s;
+}
+
+.ps-col-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-bg);
+}
+
+.ps-col-btn:hover:not(.active) {
+  border-color: #9ca3af;
+  color: var(--text-primary);
+}
+
+.ps-col-icon {
+  display: flex;
+  gap: 3px;
+  height: 28px;
+  align-items: stretch;
+}
+
+.ps-col-bar {
+  flex: 1;
+  background: currentColor;
+  border-radius: 2px;
+  opacity: 0.6;
+  min-width: 14px;
+}
+
+.ps-col-hint {
+  margin: 6px 0 0;
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.4;
+  font-family: -apple-system, sans-serif;
+}
+
 .comment-thread.active {
   background: #eff6ff;
   border-left: 3px solid var(--accent);
@@ -806,5 +1165,8 @@ body {
 
   .page-node:last-child { page-break-after: auto; }
 
-  .page-content { padding: 1in; min-height: 0; }
+  .page-content {
+    padding: var(--page-margin-top, 1in) var(--page-margin-right, 1in) var(--page-margin-bottom, 1in) var(--page-margin-left, 1in);
+    min-height: 0;
+  }
 }
