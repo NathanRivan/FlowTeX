@@ -188,6 +188,7 @@ export const MathInputPlugin = Extension.create({
                   if (node) {
                     dispatch(state.tr.replaceWith(from, to, node));
                     window.flowtexMathZoneUpdate?.({ active: false });
+                    window.flowtexMathCommit?.();
                   }
                 }
                 converting = false;

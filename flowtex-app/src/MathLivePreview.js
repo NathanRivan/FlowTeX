@@ -6,15 +6,24 @@ const MathLivePreview = ({ active, latex, coords, suggestions, selectedIdx }) =>
   const [html, setHtml] = useState('');
 
   useEffect(() => {
-    if (!active) return;
+    if (!active) {
+      window.flowtexMathErrorCancel?.();
+      return;
+    }
     try {
       const rendered = katex.renderToString(
         preprocessMathForDisplay(latex || ' '),
         { throwOnError: false, displayMode: false }
       );
       setHtml(rendered);
+      if (rendered.includes('katex-error')) {
+        window.flowtexMathError?.();
+      } else {
+        window.flowtexMathErrorCancel?.();
+      }
     } catch (e) {
       setHtml(`<span class="math-live-error">${e.message}</span>`);
+      window.flowtexMathError?.();
     }
   }, [latex, active]);
 

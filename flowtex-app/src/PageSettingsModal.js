@@ -62,7 +62,7 @@ const NumInput = ({ value, onChange, min, max, step, unit }) => (
   </div>
 );
 
-const PageSettingsModal = ({ settings, onChange, onClose }) => {
+const PageSettingsModal = ({ settings, onChange, onClose, soundSettings, onSoundChange }) => {
   const set = (key, val) => onChange({ ...settings, [key]: val });
 
   return (
@@ -164,6 +164,38 @@ const PageSettingsModal = ({ settings, onChange, onClose }) => {
               </p>
             )}
           </section>
+
+          {/* ── Sound ── */}
+          {soundSettings && (
+            <section className="ps-section">
+              <div className="ps-section-label">Sound Effects</div>
+              <div className="ps-sound-row">
+                <span className="ps-sound-label">Enabled</span>
+                <button
+                  className={`ps-sound-toggle${soundSettings.enabled ? ' active' : ''}`}
+                  onClick={() => onSoundChange({ ...soundSettings, enabled: !soundSettings.enabled })}
+                  aria-pressed={soundSettings.enabled}
+                >
+                  {soundSettings.enabled ? 'On' : 'Off'}
+                </button>
+              </div>
+              <div className="ps-sound-row">
+                <span className="ps-sound-label">Volume</span>
+                <div className="ps-sound-vol-wrap">
+                  <input
+                    type="range"
+                    className="ps-sound-slider"
+                    min={0}
+                    max={100}
+                    value={Math.round(soundSettings.volume * 100)}
+                    onChange={e => onSoundChange({ ...soundSettings, volume: parseInt(e.target.value, 10) / 100 })}
+                    disabled={!soundSettings.enabled}
+                  />
+                  <span className="ps-sound-vol-label">{Math.round(soundSettings.volume * 100)}%</span>
+                </div>
+              </div>
+            </section>
+          )}
         </div>
 
         <div className="ps-footer">

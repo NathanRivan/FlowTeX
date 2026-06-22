@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import { TextAlign } from '@tiptap/extension-text-align';
@@ -12,9 +13,11 @@ import { MathInputPlugin } from './MathInputPlugin';
 import { SlashCommands } from './SlashCommands';
 import { generateLaTeX } from './latexSerializer';
 import './Editor.css';
+import { supabase } from './supabase';
 import MathEditModal from './MathEditModal';
 import { PageBreak } from './PageBreak';
 import FontSizeControl from './FontSizeControl';
+import SoundEngine from './SoundEngine';
 import { importLaTeX } from './latexImporter';
 import { parseMacros } from './macroExpander';
 import PreambleModal from './PreambleModal';
@@ -26,7 +29,10 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   FileText, Upload, Printer, Wrench, MessageSquare,
   Highlighter, ScissorsIcon, LayoutTemplate, Columns2,
+  LayoutGrid, ChevronDown, Minus, Table as TableIcon,
 } from 'lucide-react';
+import TemplatesMenu from './TemplatesMenu';
+import { TEMPLATES } from './templates';
 import LoadingScreen from './LoadingScreen';
 import MathLivePreview from './MathLivePreview';
 import { Indent } from './IndentExtension';
@@ -34,6 +40,10 @@ import { PagedDocument } from './PagedDocument';
 import { PageNode } from './PageNode';
 import { AutoPageBreak } from './AutoPageBreakExtension';
 import { ColumnSpan } from './ColumnSpanExtension';
+import { Table } from '@tiptap/extension-table';
+import { TableRow } from '@tiptap/extension-table';
+import { TableHeader } from '@tiptap/extension-table';
+import { TableCell } from '@tiptap/extension-table';
 
 // Initial document: a single page with one empty paragraph
 const INITIAL_DOC = {
@@ -41,7 +51,7 @@ const INITIAL_DOC = {
   content: [{ type: 'page', content: [{ type: 'paragraph' }] }],
 };
 
-const Editor = () => {
+const Editor = ({ session, document: docProp, onBack }) => {
   // ---- STATE ----
   const [, setUpdate] = useState(0);
   const [showSource, setShowSource] = useState(false);
@@ -63,6 +73,26 @@ const Editor = () => {
 
   const handlePrintPDF = () => setTimeout(() => window.print(), 0);
 
+  // Scroll the editor to a comment's highlighted text (used when a thread is
+  // clicked in the sidebar). The sidebar itself never scrolls the window.
+  const scrollToComment = (commentId) => {
+    if (!editor) return;
+    const el = editor.view.dom.querySelector(`[data-comment-id="${commentId}"]`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const applyTemplate = (tpl) => {
+    if (!editor) return;
+    const hasContent = editor.getText().trim().length > 0;
+    if (hasContent && !window.confirm(
+      `Apply the "${tpl.label}" template?\n\nThis will replace your current document.`
+    )) return;
+    setPageSettings(tpl.pageSettings);
+    editor.commands.setContent(tpl.content);
+    setShowTemplates(false);
+    setTimeout(() => editor.commands.focus('start'), 0);
+  };
+
   const handleMathComment = (pos, latex) => {
     const id = Date.now().toString();
     setCommentThreads(prev => [...prev, {
@@ -71,8 +101,25 @@ const Editor = () => {
     }]);
   };
 
-  const [pageSettings, setPageSettings] = useState(DEFAULT_PAGE_SETTINGS);
+  const [pageSettings, setPageSettings] = useState(
+    docProp?.content?.pageSettings || docProp?.pageSettings || DEFAULT_PAGE_SETTINGS
+  );
+  const [soundSettings, setSoundSettings] = useState(() => ({
+    enabled: localStorage.getItem('flumenwrite.sfx.enabled') !== 'false',
+    volume:  Math.min(1, Math.max(0, parseFloat(localStorage.getItem('flumenwrite.sfx.volume') ?? '0.6') || 0.6)),
+  }));
+  const [docTitle, setDocTitle] = useState(docProp?.title || 'Untitled Document');
+  const docIdRef = useRef(docProp?.id || null);
+  const saveTimerRef = useRef(null);
+  const pageSettingsRef = useRef(pageSettings);
+  const mathZoneActiveRef = useRef(false);
+  const [pageIndicator, setPageIndicator] = useState({ current: 1, total: 1, show: false, top: 200 });
+  const pageIndicatorTimerRef = useRef(null);
+  const tableButtonRef = useRef(null);
   const [showPageSettings, setShowPageSettings] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
+  const [showTablePicker, setShowTablePicker] = useState(false);
+  const [tableHover, setTableHover] = useState({ cols: 0, rows: 0 });
   const [preamble, setPreamble] = useState(false);
   const [showPreamble, setShowPreamble] = useState(false);
   const [commentThreads, setCommentThreads] = useState([]);
@@ -113,7 +160,7 @@ const Editor = () => {
       AutoPageBreak,
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({
-        types: ['heading', 'paragraph', 'bulletList', 'orderedList'],
+        types: ['heading', 'paragraph'],
         defaultAlignment: 'left',
       }),
       TextStyle,
@@ -127,35 +174,61 @@ const Editor = () => {
       CommentMark,
       Indent,
       ColumnSpan,
+      Table.configure({ resizable: false }),
+      TableRow,
+      TableHeader,
+      TableCell,
       StarterKit.configure({ document: false }), // our PagedDocument handles the doc node
     ],
-    content: INITIAL_DOC,
+    content: docProp?.content || INITIAL_DOC,
     editorProps: {
       handleKeyDown: (view, event) => {
         const mod = event.metaKey || event.ctrlKey;
 
         if (event.key === 'Tab') {
           event.preventDefault();
-          const { state } = editor;
-          const { selection } = state;
+          const inList = editor.isActive('listItem');
           if (event.shiftKey) {
-            const $pos = state.doc.resolve(selection.head);
-            const node = $pos.node();
-            if (node.isTextblock) {
-              const text = node.textContent;
-              const pos = selection.head - $pos.start();
-              const lineStart = text.lastIndexOf('\n', pos - 1) + 1;
-              const line = text.substring(lineStart, pos);
-              const spaces = line.match(/^ {1,4}/);
-              if (spaces) {
-                const from = $pos.start() + lineStart;
-                editor.chain().focus().deleteRange({ from, to: from + spaces[0].length }).run();
+            // In a list, lift (un-nest). Otherwise remove one tab right before
+            // the cursor, if present.
+            if (inList) {
+              editor.chain().focus().liftListItem('listItem').run();
+            } else {
+              const { empty, $from } = editor.state.selection;
+              if (empty && $from.parentOffset > 0 &&
+                  $from.parent.textBetween($from.parentOffset - 1, $from.parentOffset) === '\t') {
+                editor.chain().focus().deleteRange({ from: $from.pos - 1, to: $from.pos }).run();
               }
             }
           } else {
-            editor.chain().focus().insertContent('    ').run();
+            if (inList) {
+              // In a list: nest the item if possible; if it's the first item
+              // (can't sink), silently consume the Tab so no \t is inserted.
+              if (editor.can().sinkListItem('listItem')) {
+                editor.chain().focus().sinkListItem('listItem').run();
+              }
+            } else {
+              // Outside a list: insert a tab character AT THE CURSOR so only
+              // text after the cursor moves (white-space: pre-wrap renders it).
+              editor.chain().focus().insertContent('\t').run();
+            }
           }
           return true;
+        }
+
+        if (event.key === 'Backspace' && !mod && !event.shiftKey) {
+          const { empty, $from } = editor.state.selection;
+          if (empty && $from.parentOffset === 0) {
+            const align = $from.parent.attrs?.textAlign;
+            if (align === 'right') {
+              editor.chain().focus().setTextAlign('center').run();
+              return true;
+            }
+            if (align === 'center') {
+              editor.chain().focus().setTextAlign('left').run();
+              return true;
+            }
+          }
         }
 
         if (!mod) return false;
@@ -163,17 +236,14 @@ const Editor = () => {
           case 'l':
             event.preventDefault();
             editor.chain().focus().setTextAlign('left').run();
-            alignListItems('left');
             return true;
           case 'e':
             event.preventDefault();
             editor.chain().focus().setTextAlign('center').run();
-            alignListItems('center');
             return true;
           case 'r':
             event.preventDefault();
             editor.chain().focus().setTextAlign('right').run();
-            alignListItems('right');
             return true;
           case 'j':
             event.preventDefault();
@@ -223,7 +293,18 @@ const Editor = () => {
       marginBottomPx: Math.round(marginBottom * 96),
       columns,
     };
-  }, [pageSettings]);
+    pageSettingsRef.current = pageSettings;
+    // Dispatch a force-repaginate signal so the AutoPageBreak plugin runs
+    // now that CSS vars are committed. This handles the initial load case
+    // where the plugin's view() fires before data-columns is set in the DOM.
+    if (editor && !editor.isDestroyed) {
+      editor.view.dispatch(
+        editor.state.tr
+          .setMeta('forceRepaginate', true)
+          .setMeta('addToHistory', false)
+      );
+    }
+  }, [pageSettings, editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -248,6 +329,19 @@ const Editor = () => {
     document.addEventListener('mousedown', handler);
     return () => document.removeEventListener('mousedown', handler);
   }, [contextMenu.show]);
+
+  useEffect(() => {
+    if (!showTablePicker) return;
+    const handler = (e) => {
+      const wrap = tableButtonRef.current;
+      const picker = document.querySelector('.table-picker-portal');
+      if (wrap && wrap.contains(e.target)) return;
+      if (picker && picker.contains(e.target)) return;
+      setShowTablePicker(false);
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showTablePicker]);
 
   useEffect(() => {
     if (!editor) return;
@@ -275,15 +369,59 @@ const Editor = () => {
     return () => { delete window.flowtexMathEdit; };
   }, [editor]);
 
-  useEffect(() => {
-    window.flowtexMathZoneUpdate = (update) =>
-      setTimeout(() => setMathZone(prev => ({ ...prev, ...update })), 0);
-    return () => { delete window.flowtexMathZoneUpdate; };
-  }, []);
 
   useEffect(() => {
     if (editor && !isEditorReady) setIsEditorReady(true);
   }, [editor, isEditorReady]);
+
+  // ---- SOUND ENGINE ----
+  // Lazy-init AudioContext on first gesture, then wire all sound hooks.
+  useEffect(() => {
+    const initOnce = () => SoundEngine.init();
+    document.addEventListener('click',   initOnce, { once: true });
+    document.addEventListener('keydown', initOnce, { once: true });
+    return () => {
+      document.removeEventListener('click',   initOnce);
+      document.removeEventListener('keydown', initOnce);
+    };
+  }, []);
+
+  // Apply sound settings immediately when they change.
+  useEffect(() => {
+    SoundEngine.setEnabled(soundSettings.enabled);
+    SoundEngine.setVolume(soundSettings.volume);
+  }, [soundSettings]);
+
+  // math.open — fires when the math zone first becomes active.
+  useEffect(() => {
+    window.flowtexMathZoneUpdate = (update) => {
+      if (update.active && !mathZoneActiveRef.current) {
+        SoundEngine.play('math.open');
+      }
+      if (update.active !== undefined) mathZoneActiveRef.current = update.active;
+      setTimeout(() => setMathZone(prev => ({ ...prev, ...update })), 0);
+    };
+    return () => { delete window.flowtexMathZoneUpdate; };
+  }, []);
+
+  // math.commit — fires when $..$ text is converted to a KaTeX node (from MathInputPlugin)
+  // OR when the MathEditModal saves an updated equation.
+  useEffect(() => {
+    window.flowtexMathCommit = () => SoundEngine.play('math.commit');
+    return () => { delete window.flowtexMathCommit; };
+  }, []);
+
+  // math.error — scheduleError/cancelError are called from MathLivePreview.
+  useEffect(() => {
+    window.flowtexMathError       = () => SoundEngine.scheduleError();
+    window.flowtexMathErrorCancel = () => SoundEngine.cancelError();
+    return () => {
+      delete window.flowtexMathError;
+      delete window.flowtexMathErrorCancel;
+      SoundEngine.cancelError();
+    };
+  }, []);
+
 
   useEffect(() => {
     const timer = setTimeout(() => setMinTimeReached(true), 2000);
@@ -298,6 +436,75 @@ const Editor = () => {
     }
   }, [isEditorReady, minTimeReached, showLoading]);
 
+  // ---- PAGE INDICATOR ----
+  useEffect(() => {
+    if (!isEditorReady) return;
+
+    const TOOLBAR_H = 87; // menubar (38px) + toolbar (49px)
+
+    const onScroll = () => {
+      const pageEls = Array.from(document.querySelectorAll('.page-node'));
+      const total = pageEls.length;
+      if (total < 2) return;
+
+      // Current page = last page whose top edge has scrolled into the content area.
+      const contentTop = window.scrollY + TOOLBAR_H;
+      let current = 1;
+      pageEls.forEach((el, i) => {
+        if (el.offsetTop <= contentTop + 40) current = i + 1;
+      });
+
+      // Vertical position: mirror the scrollbar thumb.
+      const scrollMax = Math.max(1, document.documentElement.scrollHeight - window.innerHeight);
+      const frac = Math.min(1, window.scrollY / scrollMax);
+      const topMin = TOOLBAR_H + 24;
+      const topMax = window.innerHeight - 36;
+      const top = topMin + frac * (topMax - topMin);
+
+      setPageIndicator({ current, total, show: true, top });
+      clearTimeout(pageIndicatorTimerRef.current);
+      pageIndicatorTimerRef.current = setTimeout(
+        () => setPageIndicator(p => ({ ...p, show: false })), 1500
+      );
+    };
+
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      clearTimeout(pageIndicatorTimerRef.current);
+    };
+  }, [isEditorReady]);
+
+  // ---- AUTO-SAVE ----
+  useEffect(() => {
+    if (!editor || !session || !docIdRef.current) return;
+    const handler = () => {
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+      saveTimerRef.current = setTimeout(async () => {
+        await supabase
+          .from('documents')
+          .update({
+            content: { ...editor.getJSON(), pageSettings: pageSettingsRef.current },
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', docIdRef.current);
+        SoundEngine.play('document.save');
+      }, 1500);
+    };
+    editor.on('update', handler);
+    return () => {
+      editor.off('update', handler);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [editor, session]);
+
+  const saveTitle = async (newTitle) => {
+    const title = newTitle.trim() || 'Untitled Document';
+    setDocTitle(title);
+    if (!session || !docIdRef.current) return;
+    await supabase.from('documents').update({ title }).eq('id', docIdRef.current);
+  };
+
   // ---- HELPERS ----
   const handleShowSource = () => {
     if (!editor) return;
@@ -305,18 +512,6 @@ const Editor = () => {
     setShowSource(true);
   };
 
-  const alignListItems = (alignment) => {
-    if (!editor) return;
-    const { state, dispatch } = editor.view;
-    const { selection } = state;
-    const tr = state.tr;
-    state.doc.nodesBetween(selection.from, selection.to, (node, pos) => {
-      if (node.type.name === 'listItem') {
-        tr.setNodeMarkup(pos, null, { ...node.attrs, textAlign: alignment });
-      }
-    });
-    if (tr.docChanged) dispatch(tr);
-  };
 
   if (!editor) return <div>Loading…</div>;
 
@@ -326,6 +521,44 @@ const Editor = () => {
       {isEditorReady && (
         <>
           <div className="editor-container">
+            <div className="menubar">
+              {onBack && (
+                <button className="menubar-back" onClick={onBack} title="Back to FlumenWrite">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                    <path d="M8.5 2.5L3.5 7l5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  </svg>
+                </button>
+              )}
+              <span className="menubar-brand">FlumenWrite</span>
+              {docIdRef.current && (
+                <input
+                  className="menubar-title"
+                  value={docTitle}
+                  onChange={e => setDocTitle(e.target.value)}
+                  onBlur={e => saveTitle(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') e.target.blur(); }}
+                  spellCheck={false}
+                />
+              )}
+              <div className="menubar-menu-wrap">
+                <button
+                  className={`menubar-item${showTemplates ? ' active' : ''}`}
+                  onClick={() => setShowTemplates(v => !v)}
+                  title="Insert a document template"
+                >
+                  <LayoutGrid size={15} />
+                  <span>Templates</span>
+                  <ChevronDown size={14} />
+                </button>
+                {showTemplates && (
+                  <TemplatesMenu
+                    templates={TEMPLATES}
+                    onApply={applyTemplate}
+                    onClose={() => setShowTemplates(false)}
+                  />
+                )}
+              </div>
+            </div>
             <div className="toolbar">
               <div className="toolbar-inner">
 
@@ -365,13 +598,24 @@ const Editor = () => {
 
                 <div className="toolbar-group">
                   <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Align left (Ctrl+L)"><AlignLeft size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => { editor.chain().focus().setTextAlign('center').run(); alignListItems('center'); }} title="Center (Ctrl+E)"><AlignCenter size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => { editor.chain().focus().setTextAlign('right').run(); alignListItems('right'); }} title="Align right (Ctrl+R)"><AlignRight size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Center (Ctrl+E)"><AlignCenter size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('right').run()} title="Align right (Ctrl+R)"><AlignRight size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('justify').run()} title="Justify (Ctrl+J)"><AlignJustify size={16} /></button>
                 </div>
 
                 <div className="toolbar-group">
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().insertPageBreak().run()} title="Page Break"><ScissorsIcon size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Line"><Minus size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().insertNewPage().run()} title="Page Break"><ScissorsIcon size={16} /></button>
+                  <div className="toolbar-table-wrap" ref={tableButtonRef}>
+                    <button
+                      onMouseDown={e => e.preventDefault()}
+                      onClick={() => setShowTablePicker(v => !v)}
+                      className={showTablePicker ? 'active' : ''}
+                      title="Insert Table"
+                    >
+                      <TableIcon size={16} />
+                    </button>
+                  </div>
                   <button onClick={handleShowSource} title="Export .tex"><FileText size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => {
                     const raw = prompt('Paste your .tex content:');
@@ -455,6 +699,7 @@ const Editor = () => {
                       editor.view.dispatch(
                         editor.state.tr.setNodeMarkup(currentPos, null, { latex: newLatex })
                       );
+                      SoundEngine.play('math.commit');
                     }
                   }
                 }}
@@ -469,6 +714,8 @@ const Editor = () => {
                 settings={pageSettings}
                 onChange={setPageSettings}
                 onClose={() => setShowPageSettings(false)}
+                soundSettings={soundSettings}
+                onSoundChange={setSoundSettings}
               />
             )}
 
@@ -527,6 +774,26 @@ const Editor = () => {
                 }}>
                   <span>Comment</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Ctrl+Alt+M</span>
                 </div>
+                {editor.isActive('table') && <>
+                  <div style={{ borderTop: '1px solid var(--border)', margin: '3px 0' }} />
+                  {[
+                    ['Add row above',    () => editor.chain().focus().addRowBefore().run()],
+                    ['Add row below',    () => editor.chain().focus().addRowAfter().run()],
+                    ['Delete row',       () => editor.chain().focus().deleteRow().run()],
+                    ['Add column left',  () => editor.chain().focus().addColumnBefore().run()],
+                    ['Add column right', () => editor.chain().focus().addColumnAfter().run()],
+                    ['Delete column',    () => editor.chain().focus().deleteColumn().run()],
+                    ['Delete table',     () => editor.chain().focus().deleteTable().run()],
+                  ].map(([label, action]) => (
+                    <div key={label} className="context-menu-item" onClick={(e) => {
+                      e.stopPropagation();
+                      action();
+                      setContextMenu({ show: false, x: 0, y: 0, hasSelection: false });
+                    }}>
+                      <span>{label}</span>
+                    </div>
+                  ))}
+                </>}
               </div>
             )}
           </div>
@@ -554,11 +821,51 @@ const Editor = () => {
             selectedIdx={mathZone.selectedIdx}
           />
 
+          {showTablePicker && tableButtonRef.current && createPortal(
+            (() => {
+              const rect = tableButtonRef.current.getBoundingClientRect();
+              return (
+                <div
+                  className="table-picker table-picker-portal"
+                  style={{ position: 'fixed', top: rect.bottom + 6, left: rect.left }}
+                  onMouseLeave={() => setTableHover({ cols: 0, rows: 0 })}
+                >
+                  <div className="table-picker-grid">
+                    {Array.from({ length: 6 }, (_, r) =>
+                      Array.from({ length: 6 }, (_, c) => (
+                        <div
+                          key={`${r}-${c}`}
+                          className={`table-picker-cell${r < tableHover.rows && c < tableHover.cols ? ' hovered' : ''}`}
+                          onMouseEnter={() => setTableHover({ rows: r + 1, cols: c + 1 })}
+                          onClick={() => {
+                            editor.chain().focus().insertTable({
+                              rows: tableHover.rows,
+                              cols: tableHover.cols,
+                              withHeaderRow: true,
+                            }).run();
+                            setShowTablePicker(false);
+                            setTableHover({ cols: 0, rows: 0 });
+                          }}
+                        />
+                      ))
+                    )}
+                  </div>
+                  <div className="table-picker-label">
+                    {tableHover.rows > 0
+                      ? `${tableHover.rows} × ${tableHover.cols}`
+                      : 'Hover to select size'}
+                  </div>
+                </div>
+              );
+            })(),
+            document.body
+          )}
+
           {showComments && (
             <CommentSidebar
               threads={commentThreads}
               activeId={activeCommentId}
-              onSelect={id => setActiveCommentId(id)}
+              onSelect={id => { setActiveCommentId(id); scrollToComment(id); }}
               onReply={(id, text) => setCommentThreads(prev => prev.map(t => t.id === id ? { ...t, replies: [...t.replies, text] } : t))}
               onResolve={id => { removeCommentMark(id); setCommentThreads(prev => prev.map(t => t.id === id ? { ...t, resolved: true } : t)); }}
               onDelete={id => { removeCommentMark(id); setCommentThreads(prev => prev.filter(t => t.id !== id)); }}
@@ -566,6 +873,14 @@ const Editor = () => {
             />
           )}
         </>
+      )}
+      {pageIndicator.total > 1 && (
+        <div
+          className={`page-indicator${pageIndicator.show ? ' page-indicator--visible' : ''}`}
+          style={{ top: pageIndicator.top }}
+        >
+          {pageIndicator.current} / {pageIndicator.total}
+        </div>
       )}
       {showLoading && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, transition: 'opacity 0.5s ease', opacity: fadeOut ? 0 : 1 }}>

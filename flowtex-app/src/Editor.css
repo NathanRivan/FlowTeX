@@ -16,6 +16,7 @@
   --shadow-md: 0 4px 16px rgba(0,0,0,0.12);
   --shadow-lg: 0 8px 32px rgba(0,0,0,0.16);
   --toolbar-height: 49px;
+  --menubar-height: 38px;
 }
 
 * { box-sizing: border-box; }
@@ -33,10 +34,176 @@ body {
   min-height: 100vh;
 }
 
+/* ===== MENU BAR (Google-Docs-style strip above the toolbar) ===== */
+.menubar {
+  position: sticky;
+  top: 0;
+  z-index: 101;
+  height: var(--menubar-height);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 14px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border-light);
+  flex-shrink: 0;
+}
+
+.menubar-brand {
+  font-weight: 700;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  color: var(--accent);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  user-select: none;
+}
+
+.menubar-menu-wrap { position: relative; }
+
+.menubar-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  height: 26px;
+  padding: 0 9px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  transition: background 0.12s, color 0.12s;
+}
+
+.menubar-item:hover { background: var(--hover-bg); }
+.menubar-item.active { background: var(--accent-bg); color: var(--accent); }
+
+.menubar-back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-secondary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 0.12s, color 0.12s;
+}
+
+.menubar-back:hover {
+  background: var(--hover-bg);
+  color: var(--text-primary);
+}
+
+.menubar-title {
+  font-size: 13px;
+  font-weight: 500;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  color: var(--text-primary);
+  background: none;
+  border: none;
+  outline: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-sm);
+  min-width: 80px;
+  max-width: 260px;
+  width: auto;
+  flex: 0 1 200px;
+  transition: background 0.12s;
+}
+
+.menubar-title:hover { background: var(--hover-bg); }
+
+.menubar-title:focus {
+  background: var(--hover-bg);
+  box-shadow: 0 0 0 2px rgba(26,115,232,0.15);
+}
+
+/* ===== TEMPLATES DROPDOWN ===== */
+.templates-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  width: 340px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-lg);
+  z-index: 200;
+  padding: 10px;
+}
+
+.templates-dropdown-title {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  padding: 4px 6px 8px;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.templates-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.template-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 11px;
+  width: 100%;
+  text-align: left;
+  padding: 9px 8px;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.template-card:hover { background: var(--hover-bg); }
+
+.template-card-icon {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-bg);
+  color: var(--accent);
+  border-radius: var(--radius-sm);
+}
+
+.template-card-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.template-card-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.template-card-desc {
+  font-size: 11.5px;
+  color: var(--text-secondary);
+  line-height: 1.35;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
 /* ===== TOOLBAR ===== */
 .toolbar {
   position: sticky;
-  top: 0;
+  top: var(--menubar-height);
   z-index: 100;
   width: 100%;
   background: var(--surface);
@@ -200,13 +367,13 @@ body {
 }
 
 .page-wrapper .tiptap {
-  min-height: calc(100vh - var(--toolbar-height));
+  min-height: calc(100vh - var(--toolbar-height) - var(--menubar-height));
 }
 
 .page-wrapper .ProseMirror {
   outline: none;
   background: var(--bg);
-  min-height: calc(100vh - var(--toolbar-height));
+  min-height: calc(100vh - var(--toolbar-height) - var(--menubar-height));
   padding: 32px 0 80px;
 }
 
@@ -240,6 +407,11 @@ body {
   letter-spacing: 0.01em;
   -webkit-font-smoothing: antialiased;
   text-rendering: geometricPrecision;
+  /* Preserve tab characters and runs of spaces so Tab indents at the cursor
+     (a real \t) instead of collapsing. Still wraps normally. */
+  white-space: pre-wrap;
+  tab-size: 4;
+  -moz-tab-size: 4;
 }
 
 /* ===== TWO-COLUMN MODE ===== */
@@ -247,7 +419,9 @@ body {
    bottom of the page first, then text continues at the TOP of the RIGHT
    column (IEEE / ACM style).  The content box is locked to exactly the page's
    content-area height so each column is one page tall; overflow:hidden clips
-   any 3rd column that the browser creates when both columns are full.
+   vertically, and clip-path clips the 3rd column horizontally at the
+   right-margin boundary (the 3rd column starts inside the right padding area,
+   which overflow:hidden alone does not reach).
    The pagination engine detects that overflow via scrollWidth > clientWidth
    and moves the spilled block(s) onto the next page.                       */
 :root[data-columns="2"] .page-content {
@@ -257,6 +431,64 @@ body {
   column-rule: 1px solid var(--border-light);
   height: calc(var(--page-height, 11in) - var(--page-margin-top, 1in) - var(--page-margin-bottom, 1in));
   overflow: hidden;
+  /* clip-path trims the right-margin padding area so the 3rd browser-generated
+     column (which lands inside that padding) is never visible.              */
+  clip-path: inset(0 var(--page-margin-right, 1in) 0 0);
+}
+
+/* ===== LISTS ===== */
+/* Reset white-space: pre-wrap (inherited from .page-content) so source
+   newlines don't become visible line breaks inside list elements. */
+.page-content ul,
+.page-content ol,
+.page-content li {
+  white-space: normal;
+}
+
+/* ul/ol block is indented 1.5em from the content edge so the hanging marker
+   stays inside the content area (not in the 1-inch page margin).
+   padding-left gives the marker its hanging space. */
+.page-content ul,
+.page-content ol {
+  margin: 0.5em 0 0.5em 1.5em;
+  padding-left: 1.25em;
+}
+
+.page-content ul { list-style-type: disc; }
+.page-content ol { list-style-type: decimal; }
+
+/* outside = marker hangs in the padding area; wrapped text aligns with the
+   text start (not the bullet) — standard hanging-indent behaviour. */
+.page-content li {
+  list-style-position: outside;
+  margin: 0.25em 0;
+}
+
+/* TipTap wraps li content in <p>. Strip its block margin so the list is
+   compact; re-enable pre-wrap so tab chars work inside list text. */
+.page-content li > p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* Nested lists: don't re-add the block margin-left. */
+.page-content li > ul,
+.page-content li > ol {
+  margin-left: 0;
+  margin-top: 0.15em;
+  margin-bottom: 0.15em;
+}
+
+.page-content li ul { list-style-type: circle; }
+.page-content li ol { list-style-type: lower-alpha; }
+.page-content li li ul { list-style-type: square; }
+
+/* ===== HORIZONTAL RULE (CV / section dividers) ===== */
+.page-content hr {
+  border: none;
+  border-top: 1px solid #9ca3af;
+  margin: 0.25em 0 0.5em;
+  height: 0;
 }
 
 /* ===== BLOCKQUOTE ===== */
@@ -707,7 +939,7 @@ body {
 
 .close-btn:hover { background: var(--hover-bg); color: var(--text-primary); }
 
-.comment-threads-list { flex: 1; overflow-y: auto; padding: 8px 0; }
+.comment-threads-list { flex: 1; overflow-y: auto; padding: 8px 0; position: relative; }
 
 .comment-threads-empty {
   padding: 24px 16px; text-align: center; font-size: 13px;
@@ -1066,6 +1298,59 @@ body {
   font-family: -apple-system, sans-serif;
 }
 
+/* Sound settings */
+.ps-sound-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-primary);
+  font-family: -apple-system, sans-serif;
+}
+
+.ps-sound-label { color: var(--text-primary); }
+
+.ps-sound-toggle {
+  padding: 4px 14px;
+  border: 1.5px solid var(--border);
+  border-radius: 20px;
+  background: var(--surface);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  color: var(--text-secondary);
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  font-family: -apple-system, sans-serif;
+}
+
+.ps-sound-toggle.active {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.ps-sound-vol-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.ps-sound-slider {
+  width: 120px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.ps-sound-slider:disabled { opacity: 0.35; cursor: default; }
+
+.ps-sound-vol-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-family: -apple-system, sans-serif;
+  min-width: 32px;
+  text-align: right;
+}
+
 .comment-thread.active {
   background: #eff6ff;
   border-left: 3px solid var(--accent);
@@ -1132,6 +1417,103 @@ body {
 .floating-action-btn:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: scale(1.06); }
 .floating-action-btn.disabled { opacity: 0.5; background: #f9fafb; }
 .floating-action-btn.disabled:hover { box-shadow: var(--shadow-sm); transform: none; }
+
+/* ===== PAGE INDICATOR ===== */
+.page-indicator {
+  position: fixed;
+  right: 20px;
+  transform: translateY(-50%);
+  background: rgba(17, 24, 39, 0.72);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  padding: 4px 10px;
+  border-radius: 20px;
+  pointer-events: none;
+  z-index: 200;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  backdrop-filter: blur(4px);
+  white-space: nowrap;
+}
+
+.page-indicator--visible {
+  opacity: 1;
+}
+
+/* ===== TABLE PICKER ===== */
+.table-picker {
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-md);
+  padding: 10px;
+  z-index: 9999;
+  user-select: none;
+}
+
+.table-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 18px);
+  gap: 3px;
+}
+
+.table-picker-cell {
+  width: 18px;
+  height: 18px;
+  border: 1.5px solid var(--border);
+  border-radius: 2px;
+  cursor: pointer;
+  background: var(--surface);
+  transition: background 0.08s, border-color 0.08s;
+}
+
+.table-picker-cell.hovered {
+  background: var(--accent-bg);
+  border-color: var(--accent);
+}
+
+.table-picker-label {
+  margin-top: 8px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  text-align: center;
+  font-family: -apple-system, sans-serif;
+}
+
+/* ===== TABLE STYLES (inside .page-content) ===== */
+.ProseMirror table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 12px 0;
+  font-size: inherit;
+  table-layout: fixed;
+}
+
+.ProseMirror table td,
+.ProseMirror table th {
+  border: 1px solid #cbd5e1;
+  padding: 6px 10px;
+  vertical-align: top;
+  min-width: 40px;
+  position: relative;
+  word-break: break-word;
+}
+
+.ProseMirror table th {
+  background: #f1f5f9;
+  font-weight: 600;
+  text-align: left;
+}
+
+.ProseMirror table .selectedCell::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(59, 130, 246, 0.12);
+  pointer-events: none;
+}
 
 /* ===== PRINT STYLES ===== */
 @media print {

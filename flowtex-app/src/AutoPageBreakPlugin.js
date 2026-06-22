@@ -63,6 +63,7 @@ export const autoPageBreakPlugin = () => {
   function repaginate(view) {
     const { state, dispatch } = view;
     const { doc, schema } = state;
+    const { skipEmptyCleanup } = paginationKey.getState(state);
 
     if (!schema.nodes.page || view.composing) return;
 
@@ -153,8 +154,9 @@ export const autoPageBreakPlugin = () => {
     }
 
     // --- 3. Empty page removal: drop pages that contain only an empty paragraph,
-    //        but only when the cursor is not in them (avoid eating the user's page). ---
-    if (doc.childCount > 1) {
+    //        but only when the cursor is not in them (avoid eating the user's page).
+    //        Skipped when skipEmptyCleanup is set (e.g. right after insertNewPage). ---
+    if (!skipEmptyCleanup && doc.childCount > 1) {
       const { from: selFrom } = state.selection;
       let pos = 0;
       for (let i = 0; i < doc.childCount; i++) {
@@ -235,10 +237,21 @@ export const autoPageBreakPlugin = () => {
 
   return new Plugin({
     key: paginationKey,
-    view(view) {
+    // Track a one-shot "force" flag set by the forceRepaginate meta key.
+    // This lets Editor.js trigger repagination after CSS vars are applied,
+    // without needing a doc change to satisfy the update() guard.
+    state: {
+      init: () => ({ force: false, skipEmptyCleanup: false }),
+      apply: (tr) => ({
+        force: !!tr.getMeta('forceRepaginate'),
+        skipEmptyCleanup: !!tr.getMeta('skipEmptyCleanup'),
+      }),
+    },
+    view() {
       return {
         update(v, prev) {
-          if (v.state.doc === prev.doc) return;
+          const { force } = paginationKey.getState(v.state);
+          if (v.state.doc === prev.doc && !force) return;
           cancelAnimationFrame(rafId);
           // RAF ensures DOM is laid out before we measure scrollHeight.
           rafId = requestAnimationFrame(() => repaginate(v));

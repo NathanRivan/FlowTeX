@@ -34,6 +34,10 @@ export const SlashCommands = Extension.create({
               action: 'blockquote',
             },
             {
+              title: 'Divider',
+              action: 'horizontalRule'
+            },
+            {
               title: 'Page Break',
               action: 'pageBreak'
             },
@@ -99,6 +103,9 @@ export const SlashCommands = Extension.create({
                   break;
                 case 'blockquote':
                   chain.setBlockquote().run();
+                  break;
+                case 'horizontalRule':
+                  chain.setHorizontalRule().run();
                   break;
                 case 'pageBreak':
                   savedEditor.chain().focus().deleteRange(from, to).insertPageBreak().run();

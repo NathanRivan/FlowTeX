@@ -31,16 +31,7 @@ export const KatexExtension = Node.create({
 
   renderHTML({ node, HTMLAttributes }) {
     const latex = node.attrs.latex || '';
-    const processed = preprocessMathForDisplay(latex);
-    try {
-      const html = katex.renderToString(processed, {
-        throwOnError: false,
-        displayMode: false,
-      });
-      return ['span', { 'data-latex': latex, ...HTMLAttributes }, { _: 'html', value: html }];
-    } catch (e) {
-      return ['span', { 'data-latex': latex, ...HTMLAttributes }, latex];
-    }
+    return ['span', { 'data-latex': latex, ...HTMLAttributes }, latex];
   },
 
   addNodeView() {

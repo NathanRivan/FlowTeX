@@ -22,7 +22,7 @@ const LoadingScreen = () => {
         marginBottom: '16px',
         letterSpacing: '-0.5px',
       }}>
-        FlowTeX
+        FlumenWrite
       </h1>
       <div style={{
         width: '120px',

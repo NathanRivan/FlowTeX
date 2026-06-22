@@ -1,0 +1,436 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;1,400;1,700&display=swap');
+
+* { box-sizing: border-box; }
+
+.fw-dash {
+  min-height: 100vh;
+  background: #f7f4ef;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── HEADER ── */
+.fw-header {
+  background: #fff;
+  border-bottom: 1px solid rgba(44,61,84,0.08);
+  height: 52px;
+  display: flex;
+  align-items: center;
+  padding: 0 36px;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.fw-back-btn {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #aaa;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.15s;
+  flex-shrink: 0;
+}
+
+.fw-back-btn:hover { color: #2c3d54; }
+
+.fw-header-brand {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #1a2535;
+  margin-left: 18px;
+  padding-left: 18px;
+  border-left: 1px solid rgba(44,61,84,0.1);
+  letter-spacing: -0.2px;
+}
+
+.fw-header-f {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-style: italic;
+  font-size: 17px;
+  color: #2c3d54;
+}
+
+.fw-header-user {
+  margin-left: auto;
+  font-size: 13px;
+  color: #bbb;
+}
+
+/* ── MAIN ── */
+.fw-main {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 52px 40px 80px;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 52px;
+}
+
+/* ── TOP STRIP ── */
+.fw-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.fw-welcome {
+  font-size: 28px;
+  font-weight: 400;
+  color: #1a2535;
+  letter-spacing: -0.6px;
+  margin: 0;
+}
+
+.fw-welcome strong { font-weight: 700; }
+
+.fw-welcome-sub {
+  font-size: 14px;
+  color: #aaa;
+  margin: 5px 0 0;
+}
+
+.fw-new-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: #2c3d54;
+  color: #f0e6dc;
+  border: none;
+  border-radius: 10px;
+  padding: 11px 20px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  letter-spacing: -0.1px;
+  transition: background 0.15s, transform 0.15s;
+  flex-shrink: 0;
+}
+
+.fw-new-btn:hover {
+  background: #3a4f6e;
+  transform: translateY(-1px);
+}
+
+/* ── SECTIONS ── */
+.fw-section {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.fw-section-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #bbb;
+  margin: 0;
+}
+
+/* ── TEMPLATES ── */
+.fw-templates {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+
+.fw-template-card {
+  background: #fff;
+  border: 1.5px solid rgba(44,61,84,0.08);
+  border-radius: 12px;
+  padding: 14px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+}
+
+.fw-template-card:hover {
+  border-color: rgba(44,61,84,0.2);
+  box-shadow: 0 4px 14px rgba(44,61,84,0.08);
+  transform: translateY(-2px);
+}
+
+/* ── TEMPLATE THUMBNAIL ── */
+.fw-tpl-thumb {
+  background: #f0ebe2;
+  border-radius: 6px;
+  padding: 8px 10px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin-bottom: 6px;
+  min-height: 88px;
+}
+
+/* Two-column layout inside thumbnail */
+.fw-tl-two-col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+.fw-tl-col {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Generic line building blocks */
+.fw-tl {
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Widths */
+.fw-tl-s  { width: 52%; }
+.fw-tl-m  { width: 70%; }
+.fw-tl-xs { width: 35%; }
+
+/* Title bar (large, centered) */
+.fw-tl-title-c {
+  height: 6px;
+  width: 58%;
+  margin-left: auto;
+  margin-right: auto;
+  background: rgba(44,61,84,0.3);
+  margin-bottom: 2px;
+}
+
+.fw-tl-lg { height: 7px; }
+
+/* Subtitle / byline (small, centered) */
+.fw-tl-sub-c {
+  height: 3px;
+  width: 38%;
+  margin-left: auto;
+  margin-right: auto;
+  background: rgba(44,61,84,0.14);
+}
+
+/* Section header (bold-ish short line) */
+.fw-tl-hdr {
+  height: 4px;
+  width: 42%;
+  background: rgba(44,61,84,0.24);
+}
+
+/* Body text line */
+.fw-tl-body {
+  height: 3px;
+  width: 100%;
+  background: rgba(44,61,84,0.1);
+}
+
+/* Horizontal rule */
+.fw-tl-divider {
+  height: 1px;
+  background: rgba(44,61,84,0.18);
+  margin: 4px 0;
+}
+
+/* Template card labels */
+.fw-tpl-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #1a2535;
+  letter-spacing: -0.1px;
+}
+
+.fw-tpl-desc {
+  font-size: 11px;
+  color: #bbb;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* ── SECTION HEADER (label + search) ── */
+.fw-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.fw-search-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: #fff;
+  border: 1.5px solid rgba(44,61,84,0.1);
+  border-radius: 8px;
+  padding: 5px 10px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.fw-search-wrap:focus-within {
+  border-color: rgba(44,61,84,0.3);
+  box-shadow: 0 0 0 3px rgba(44,61,84,0.06);
+}
+
+.fw-search-icon {
+  color: #bbb;
+  flex-shrink: 0;
+}
+
+.fw-search {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13px;
+  color: #1a2535;
+  width: 190px;
+}
+
+.fw-search::placeholder { color: #ccc; }
+
+.fw-search-clear {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #bbb;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  transition: color 0.12s;
+  flex-shrink: 0;
+}
+
+.fw-search-clear:hover { color: #888; }
+
+/* ── DOCUMENT CARD GRID ── */
+.fw-doc-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+}
+
+.fw-doc-card {
+  background: #fff;
+  border: 1.5px solid rgba(44,61,84,0.07);
+  border-radius: 12px;
+  padding: 12px 12px 14px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s, transform 0.15s;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+.fw-doc-card:hover {
+  border-color: rgba(44,61,84,0.16);
+  box-shadow: 0 4px 16px rgba(44,61,84,0.09);
+  transform: translateY(-2px);
+}
+
+.fw-doc-card:hover .fw-doc-card-del { opacity: 1; }
+
+/* ── PAGE THUMBNAIL ── */
+.fw-doc-page-thumb {
+  width: 100%;
+  aspect-ratio: 8.5 / 11;
+  background: #faf8f5;
+  border: 1px solid rgba(44,61,84,0.07);
+  border-radius: 6px;
+  overflow: hidden;
+  position: relative;
+  margin-bottom: 11px;
+  flex-shrink: 0;
+}
+
+/*
+ * Text preview: the inner div is rendered at full size, then scaled down
+ * so it fills the card thumbnail like a real page.
+ * width: 590% = 1/0.17 of parent, so after scale(0.17) it fills exactly.
+ */
+.fw-doc-thumb-text {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 590%;
+  padding: 6% 7%;
+  transform: scale(0.17);
+  transform-origin: top left;
+  font-size: 13px;
+  line-height: 1.75;
+  color: #2a2a2a;
+  font-family: 'Times New Roman', Georgia, serif;
+  pointer-events: none;
+  user-select: none;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* Empty doc: show placeholder ruled lines */
+.fw-doc-thumb-empty {
+  padding: 14% 12%;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.fw-doc-thumb-empty .fw-tl-body {
+  height: 3px;
+  background: rgba(44,61,84,0.09);
+  border-radius: 2px;
+}
+
+/* ── CARD META ── */
+.fw-doc-card-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1a2535;
+  margin: 0 0 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fw-doc-card-date {
+  font-size: 11px;
+  color: #bbb;
+  margin: 0;
+}
+
+/* Delete button — hidden until hover */
+.fw-doc-card-del {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  opacity: 0;
+  background: #fff;
+  border: 1px solid rgba(44,61,84,0.1);
+  border-radius: 6px;
+  cursor: pointer;
+  color: #bbb;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.12s, color 0.12s, background 0.12s;
+  box-shadow: 0 1px 4px rgba(44,61,84,0.08);
+}
+
+.fw-doc-card-del:hover {
+  color: #c94;
+  background: rgba(204,153,68,0.08);
+}
+
+.fw-empty {
+  font-size: 14px;
+  color: #bbb;
+  margin: 0;
+}

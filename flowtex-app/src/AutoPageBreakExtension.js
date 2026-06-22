@@ -25,12 +25,6 @@ export const AutoPageBreak = Extension.create({
         const { state } = editor;
         const { $from, empty } = state.selection;
 
-        // In two-column mode the new paragraph must be allowed to flow into the
-        // right column naturally (CSS column-fill: auto handles that). Routing it
-        // to the next page here would skip the right column, so defer to default
-        // behavior + the RAF overflow pass (which detects a full 3rd column).
-        if ((window.flowtexPageSettings?.columns ?? 1) === 2) return false;
-
         // Plain cursor only (no selection range).
         if (!empty) return false;
 
@@ -55,12 +49,31 @@ export const AutoPageBreak = Extension.create({
         const contentEl = pageEls[pageIndex]?.querySelector('.page-content');
         if (!contentEl) return false;
 
-        const cursorCoords  = editor.view.coordsAtPos($from.pos);
-        const contentRect   = contentEl.getBoundingClientRect();
-        // contentAreaBottom = bottom of the element minus its bottom padding.
-        const contentAreaBottom = contentRect.bottom - getBottomPaddingPx();
-        const distanceFromBottom = contentAreaBottom - cursorCoords.bottom;
-        if (distanceFromBottom >= NEAR_BOTTOM_PX) return false; // still room; let default handle it
+        const cursorCoords = editor.view.coordsAtPos($from.pos);
+        const contentRect  = contentEl.getBoundingClientRect();
+        const columns = window.flowtexPageSettings?.columns ?? 1;
+
+        if (columns === 2) {
+          // Two-column: only route to the next page when the cursor is at the
+          // bottom of the RIGHT column. At the bottom of the LEFT column the new
+          // line should flow into the right column, so let the default handle it.
+          const cs        = getComputedStyle(contentEl);
+          const padLeft   = parseFloat(cs.paddingLeft)   || 0;
+          const padRight  = parseFloat(cs.paddingRight)  || 0;
+          const padBottom = parseFloat(cs.paddingBottom) || 0;
+          const gap       = parseFloat(cs.columnGap)     || 0;
+          const innerWidth = contentEl.clientWidth - padLeft - padRight;
+          const colWidth   = (innerWidth - gap) / 2;
+          const col2Left   = contentRect.left + padLeft + colWidth + gap;
+          const contentAreaBottom = contentRect.bottom - padBottom;
+          const inRightColumn = cursorCoords.left >= col2Left - 4;
+          const nearBottom    = contentAreaBottom - cursorCoords.bottom < NEAR_BOTTOM_PX;
+          if (!(inRightColumn && nearBottom)) return false;
+        } else {
+          // Single-column: route when the cursor is near the content-area bottom.
+          const contentAreaBottom = contentRect.bottom - getBottomPaddingPx();
+          if (contentAreaBottom - cursorCoords.bottom >= NEAR_BOTTOM_PX) return false;
+        }
 
         // The page is full.  Route the new paragraph to the next page.
         const { doc, schema } = state;

@@ -3,10 +3,22 @@ import { useEffect, useRef } from 'react';
 
 const CommentSidebar = ({ threads, activeId, onSelect, onReply, onResolve, onDelete, onClose }) => {
   const threadRefs = useRef({});
+  const listRef = useRef(null);
 
   useEffect(() => {
-    if (activeId && threadRefs.current[activeId]) {
-      threadRefs.current[activeId].scrollIntoView({ behavior: 'smooth', block: 'center' });
+    const el = activeId && threadRefs.current[activeId];
+    const list = listRef.current;
+    if (!el || !list) return;
+    // Scroll only WITHIN the sidebar list — never use scrollIntoView here, which
+    // would also scroll the main editor window (jumping the user away from their
+    // place). Adjust the list's own scrollTop to bring the active thread into view.
+    const elRect = el.getBoundingClientRect();
+    const listRect = list.getBoundingClientRect();
+    const above = elRect.top < listRect.top;
+    const below = elRect.bottom > listRect.bottom;
+    if (above || below) {
+      const delta = (elRect.top - listRect.top) - (list.clientHeight / 2 - el.offsetHeight / 2);
+      list.scrollTop += delta;
     }
   }, [activeId, threads]);
 
@@ -22,7 +34,7 @@ const CommentSidebar = ({ threads, activeId, onSelect, onReply, onResolve, onDel
         </button>
       </div>
 
-      <div className="comment-threads-list">
+      <div className="comment-threads-list" ref={listRef}>
         {threads.length === 0 && (
           <p className="comment-threads-empty">No comments yet.</p>
         )}
