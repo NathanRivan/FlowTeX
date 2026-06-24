@@ -1521,12 +1521,16 @@ body {
 
   body { margin: 0; background: white; }
 
+  .menubar,
   .toolbar,
   .floating-right-actions,
   .comment-sidebar,
   .math-side-panel,
   .modal-backdrop,
-  .slash-popup { display: none !important; }
+  .slash-popup,
+  .page-indicator,
+  .table-picker-portal,
+  .math-live-container { display: none !important; }
 
   .editor-container { background: white; }
   .page-wrapper { background: white; }

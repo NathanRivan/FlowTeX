@@ -134,6 +134,29 @@ function renderNode(node) {
     case 'katexDisplay':
       return `\\[${node.attrs?.latex || ''}\\]`;
 
+    case 'horizontalRule':
+      return '\\noindent\\rule{\\linewidth}{0.4pt}';
+
+    case 'table': {
+      const rows = node.content || [];
+      const colCount = rows[0]?.content?.length || 1;
+      const colSpec = '|' + Array(colCount).fill('l').join('|') + '|';
+      const body = rows.map((row, ri) => {
+        const cells = (row.content || []).map(cell => {
+          const text = (cell.content || []).map(renderNode).join('').trim();
+          return text;
+        }).join(' & ');
+        const isHeader = ri === 0 && row.content?.some(c => c.type === 'tableHeader');
+        return cells + ' \\\\' + (isHeader ? '\n\\hline' : '');
+      }).join('\n');
+      return `\\begin{tabular}{${colSpec}}\n\\hline\n${body}\n\\hline\n\\end{tabular}`;
+    }
+
+    case 'tableRow':
+    case 'tableCell':
+    case 'tableHeader':
+      return (node.content || []).map(renderNode).join('');
+
     // Add more block types as needed (code_block, etc.)
     default:
       // For unknown block types, try to process children
@@ -150,13 +173,43 @@ export function generateLaTeX(editor) {
   return renderNode(doc);
 }
 
-export function buildFullLaTeX(editor) {
+export function buildFullLaTeX(editor, pageSettings) {
   const body = generateLaTeX(editor);
-  return `\\documentclass{article}
-\\usepackage{amsmath, amssymb, amsthm, graphicx}
+  const ps = pageSettings || {};
+
+  const pageSize   = ps.pageSize === 'a4' ? 'a4paper' : 'letterpaper';
+  const fontSize   = Math.round(ps.fontSize ?? 12);
+  const marginTop  = ps.marginTop    ?? 1;
+  const marginBot  = ps.marginBottom ?? 1;
+  const marginL    = ps.marginLeft   ?? 1;
+  const marginR    = ps.marginRight  ?? 1;
+  const spacing    = ps.lineSpacing  ?? 1.5;
+  const columns    = ps.columns      ?? 1;
+
+  const classOpts = columns === 2
+    ? `[${fontSize}pt,twocolumn,${pageSize}]`
+    : `[${fontSize}pt,${pageSize}]`;
+
+  // Map numeric line spacing to setspace commands
+  let spacingCmd = '';
+  if (spacing <= 1.05)       spacingCmd = '\\singlespacing';
+  else if (spacing <= 1.55)  spacingCmd = '\\onehalfspacing';
+  else if (spacing >= 1.95)  spacingCmd = '\\doublespacing';
+  else                       spacingCmd = `\\setstretch{${spacing}}`;
+
+  return `\\documentclass${classOpts}{article}
+\\usepackage[top=${marginTop}in, bottom=${marginBot}in, left=${marginL}in, right=${marginR}in]{geometry}
+\\usepackage{amsmath, amssymb, amsthm}
+\\usepackage{graphicx}
 \\usepackage[utf8]{inputenc}
+\\usepackage[T1]{fontenc}
+\\usepackage{ulem}
+\\usepackage{xcolor}
+\\usepackage{setspace}
+\\usepackage{booktabs}
 \\usepackage{hyperref}
 \\begin{document}
+${spacingCmd}
 ${body}
 \\end{document}`;
 }

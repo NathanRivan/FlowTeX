@@ -11,7 +11,7 @@ import { KatexExtension } from './KatexExtension';
 import { KatexDisplayExtension } from './KatexDisplayExtension';
 import { MathInputPlugin } from './MathInputPlugin';
 import { SlashCommands } from './SlashCommands';
-import { generateLaTeX } from './latexSerializer';
+import { generateLaTeX, buildFullLaTeX } from './latexSerializer';
 import './Editor.css';
 import { supabase } from './supabase';
 import MathEditModal from './MathEditModal';
@@ -29,7 +29,7 @@ import {
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   FileText, Upload, Printer, Wrench, MessageSquare,
   Highlighter, ScissorsIcon, LayoutTemplate, Columns2,
-  LayoutGrid, ChevronDown, Minus, Table as TableIcon,
+  LayoutGrid, ChevronDown, Minus, Table as TableIcon, FileDown,
 } from 'lucide-react';
 import TemplatesMenu from './TemplatesMenu';
 import { TEMPLATES } from './templates';
@@ -72,6 +72,43 @@ const Editor = ({ session, document: docProp, onBack }) => {
   });
 
   const handlePrintPDF = () => setTimeout(() => window.print(), 0);
+
+  const handleExportPDF = async () => {
+    const serverUrl = process.env.REACT_APP_PDF_SERVER_URL;
+    if (!serverUrl) {
+      alert('PDF server not configured.\nSet REACT_APP_PDF_SERVER_URL in your .env file.');
+      return;
+    }
+    if (!editor || exportingPdf) return;
+    setExportingPdf(true);
+    try {
+      const latex = buildFullLaTeX(editor, pageSettings);
+      const resp = await fetch(`${serverUrl}/compile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ latex }),
+      });
+      if (!resp.ok) {
+        const data = await resp.json().catch(() => ({}));
+        const errors = (data.log || data.error || 'Unknown error')
+          .split('\n').filter(l => l.startsWith('!') || l.startsWith('l.')).join('\n')
+          || data.error || 'Compilation failed.';
+        alert(`LaTeX compilation failed:\n\n${errors}`);
+        return;
+      }
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${docTitle || 'document'}.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      alert('Could not reach the PDF server. Is it running?');
+    } finally {
+      setExportingPdf(false);
+    }
+  };
 
   // Scroll the editor to a comment's highlighted text (used when a thread is
   // clicked in the sidebar). The sidebar itself never scrolls the window.
@@ -120,6 +157,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableHover, setTableHover] = useState({ cols: 0, rows: 0 });
+  const [exportingPdf, setExportingPdf] = useState(false);
   const [preamble, setPreamble] = useState(false);
   const [showPreamble, setShowPreamble] = useState(false);
   const [commentThreads, setCommentThreads] = useState([]);
@@ -621,6 +659,14 @@ const Editor = ({ session, document: docProp, onBack }) => {
                     const raw = prompt('Paste your .tex content:');
                     if (raw) editor.commands.setContent(importLaTeX(raw));
                   }} title="Import .tex"><Upload size={16} /></button>
+                  <button
+                    onClick={handleExportPDF}
+                    title="Export PDF (compiled LaTeX)"
+                    disabled={exportingPdf}
+                    style={exportingPdf ? { opacity: 0.5, cursor: 'wait' } : {}}
+                  >
+                    <FileDown size={16} />
+                  </button>
                   <button onClick={handlePrintPDF} title="Print PDF"><Printer size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPreamble(true)} title="Preamble"><Wrench size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPageSettings(true)} title="Page Settings"><LayoutTemplate size={16} /></button>
