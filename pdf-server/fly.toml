@@ -1,4 +1,5 @@
 app = "flowtex-pdf-server"
+primary_region = "sin"
 
 [build]
   dockerfile = "Dockerfile"

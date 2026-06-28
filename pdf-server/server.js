@@ -10,7 +10,9 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 
-app.use(cors({ origin: CORS_ORIGIN }));
+const corsOptions = { origin: CORS_ORIGIN, methods: ['GET', 'POST', 'OPTIONS'] };
+app.options('*', cors(corsOptions));
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '10mb' }));
 
 function runPdflatex(texFile, outDir) {
