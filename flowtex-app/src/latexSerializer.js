@@ -51,7 +51,7 @@ function renderInline(node) {
           text = `\\underline{${text}}`;
           break;
         case 'strike':
-          text = `\\sout{${text}}`; // requires \usepackage{ulem}
+          text = `\\st{${text}}`;
           break;
         case 'highlight':
           // Not straightforward; skip or use \hl{} from soul package
@@ -203,7 +203,7 @@ export function buildFullLaTeX(editor, pageSettings) {
 \\usepackage{graphicx}
 \\usepackage[utf8]{inputenc}
 \\usepackage[T1]{fontenc}
-\\usepackage{ulem}
+\\usepackage{soul}
 \\usepackage{xcolor}
 \\usepackage{setspace}
 \\usepackage{booktabs}

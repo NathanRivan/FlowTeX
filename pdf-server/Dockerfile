@@ -2,7 +2,7 @@ FROM node:20-slim
 
 # TeX Live packages that cover academic papers (IEEE, ACM, thesis)
 # Skipping texlive-fonts-extra to keep image size reasonable (~1.2 GB)
-RUN apt-get update && apt-get install -y --no-install-recommends \
+RUN apt-get update && apt-get install -y \
     texlive-latex-base \
     texlive-latex-recommended \
     texlive-latex-extra \
