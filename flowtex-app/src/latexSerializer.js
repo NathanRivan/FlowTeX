@@ -54,7 +54,10 @@ function renderInline(node) {
           text = `\\st{${text}}`;
           break;
         case 'highlight':
-          // Not straightforward; skip or use \hl{} from soul package
+          text = `\\hl{${text}}`;
+          break;
+        case 'code':
+          text = `\\texttt{${text}}`;
           break;
         case 'textStyle':
           // Font size & family
@@ -100,7 +103,8 @@ function renderNode(node) {
 
     case 'heading': {
       const level = node.attrs?.level || 1;
-      const command = level === 1 ? '\\section' : level === 2 ? '\\subsection' : '\\subsubsection';
+      // Starred variants suppress auto-numbering to match the editor's appearance
+      const command = level === 1 ? '\\section*' : level === 2 ? '\\subsection*' : '\\subsubsection*';
       const content = (node.content || []).map(renderInline).join('');
       return `${command}{${content}}`;
     }
@@ -125,14 +129,27 @@ function renderNode(node) {
     case 'orderedList':
       return `\\begin{enumerate}\n${(node.content || []).map(renderNode).join('\n')}\n\\end{enumerate}`;
 
-    case 'listItem':
-      return `\\item ${(node.content || []).map(renderInline).join('')}`;
+    case 'listItem': {
+      // tiptap wraps list item text in a paragraph node
+      const itemContent = (node.content || []).map(child => {
+        if (child.type === 'paragraph') {
+          return (child.content || []).map(renderInline).join('');
+        }
+        return renderNode(child);
+      }).join('\n');
+      return `\\item ${itemContent}`;
+    }
 
     case 'blockquote':
       return `\\begin{quote}\n${(node.content || []).map(renderNode).join('\n')}\n\\end{quote}`;
 
     case 'katexDisplay':
       return `\\[${node.attrs?.latex || ''}\\]`;
+
+    case 'codeBlock': {
+      const code = (node.content || []).map(n => n.text || '').join('');
+      return `\\begin{verbatim}\n${code}\n\\end{verbatim}`;
+    }
 
     case 'horizontalRule':
       return '\\noindent\\rule{\\linewidth}{0.4pt}';
@@ -208,6 +225,8 @@ export function buildFullLaTeX(editor, pageSettings) {
 \\usepackage{setspace}
 \\usepackage{booktabs}
 \\usepackage{hyperref}
+\\setlength{\\parindent}{0pt}
+\\setlength{\\parskip}{6pt}
 \\begin{document}
 ${spacingCmd}
 ${body}

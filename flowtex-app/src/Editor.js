@@ -100,9 +100,12 @@ const Editor = ({ session, document: docProp, onBack }) => {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `${docTitle || 'document'}.pdf`;
+      const safeTitle = (docTitle || 'document').replace(/[#%&\\/<>:"*?|]/g, '_').trim();
+      a.download = `${safeTitle}.pdf`;
+      document.body.appendChild(a);
       a.click();
-      URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10000);
     } catch (e) {
       alert('Could not reach the PDF server. Is it running?');
     } finally {
