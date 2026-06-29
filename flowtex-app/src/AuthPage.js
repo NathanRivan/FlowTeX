@@ -18,7 +18,7 @@ export default function AuthPage() {
     setLoading(true);
 
     if (mode === 'signup') {
-      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name } } });
+      const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name }, emailRedirectTo: window.location.origin } });
       if (error) {
         setError(error.message);
       } else {
