@@ -79,8 +79,9 @@ const Editor = ({ session, document: docProp, onBack }) => {
       alert('PDF server not configured.\nSet REACT_APP_PDF_SERVER_URL in your .env file.');
       return;
     }
-    if (!editor || exportingPdf) return;
-    setExportingPdf(true);
+    if (!editor || pdfStatus) return;
+    setPdfStatus('Compiling…');
+    const wakeTimer = setTimeout(() => setPdfStatus('Waking server… (~30s)'), 8000);
     try {
       const latex = buildFullLaTeX(editor, pageSettings);
       const resp = await fetch(`${serverUrl}/compile`, {
@@ -109,7 +110,8 @@ const Editor = ({ session, document: docProp, onBack }) => {
     } catch (e) {
       alert('Could not reach the PDF server. Is it running?');
     } finally {
-      setExportingPdf(false);
+      clearTimeout(wakeTimer);
+      setPdfStatus('');
     }
   };
 
@@ -160,7 +162,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const [showTemplates, setShowTemplates] = useState(false);
   const [showTablePicker, setShowTablePicker] = useState(false);
   const [tableHover, setTableHover] = useState({ cols: 0, rows: 0 });
-  const [exportingPdf, setExportingPdf] = useState(false);
+  const [pdfStatus, setPdfStatus] = useState('');
   const [preamble, setPreamble] = useState(false);
   const [showPreamble, setShowPreamble] = useState(false);
   const [commentThreads, setCommentThreads] = useState([]);
@@ -665,10 +667,11 @@ const Editor = ({ session, document: docProp, onBack }) => {
                   <button
                     onClick={handleExportPDF}
                     title="Export PDF (compiled LaTeX)"
-                    disabled={exportingPdf}
-                    style={exportingPdf ? { opacity: 0.5, cursor: 'wait' } : {}}
+                    disabled={!!pdfStatus}
+                    style={pdfStatus ? { opacity: 0.7, cursor: 'wait', fontSize: '11px', padding: '2px 6px', gap: '4px', display: 'flex', alignItems: 'center' } : {}}
                   >
                     <FileDown size={16} />
+                    {pdfStatus && <span>{pdfStatus}</span>}
                   </button>
                   <button onClick={handlePrintPDF} title="Print PDF"><Printer size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPreamble(true)} title="Preamble"><Wrench size={16} /></button>
