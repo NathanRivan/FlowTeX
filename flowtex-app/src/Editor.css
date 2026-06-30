@@ -405,8 +405,8 @@ body {
   font-size: var(--page-font-size, 12pt);
   line-height: var(--page-line-spacing, 1.5);
   letter-spacing: 0.01em;
-  -webkit-font-smoothing: antialiased;
-  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: auto;
+  text-rendering: auto;
   /* Preserve tab characters and runs of spaces so Tab indents at the cursor
      (a real \t) instead of collapsing. Still wraps normally. */
   white-space: pre-wrap;
