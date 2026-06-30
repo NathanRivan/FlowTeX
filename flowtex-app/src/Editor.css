@@ -401,7 +401,7 @@ body {
   /* min-height fills to a full page: total page height minus top+bottom margins. */
   min-height: calc(var(--page-height, 11in) - var(--page-margin-top, 1in) - var(--page-margin-bottom, 1in));
   box-sizing: content-box;
-  font-family: 'Computer Modern Serif', serif;
+  font-family: 'KaTeX_Main', 'WebCM Serif 10', serif;
   font-size: var(--page-font-size, 12pt);
   line-height: var(--page-line-spacing, 1.5);
   letter-spacing: 0.01em;
