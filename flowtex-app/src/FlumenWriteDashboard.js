@@ -132,16 +132,13 @@ export default function FlumenWriteDashboard({ session, onOpenDocument, onBack }
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
-  if (!supabase) {
-    return <div className="fw-dash"><p>Supabase is not configured.</p></div>;
-  }
-
   const displayName =
     session?.user?.user_metadata?.full_name ||
     session?.user?.email?.split('@')[0] ||
     'there';
 
   const loadDocuments = useCallback(async () => {
+    if (!supabase) { setLoading(false); return; }
     const { data } = await supabase
       .from('documents')
       .select('id, title, updated_at, content')
@@ -153,6 +150,7 @@ export default function FlumenWriteDashboard({ session, onOpenDocument, onBack }
   useEffect(() => { loadDocuments(); }, [loadDocuments]);
 
   const createDocument = async (templateKey = null) => {
+    if (!supabase) return;
     const tpl = templateKey ? TEMPLATES.find(t => t.key === templateKey) : null;
     const baseContent = tpl?.content ?? INITIAL_DOC;
     const content = tpl?.pageSettings
@@ -178,6 +176,7 @@ export default function FlumenWriteDashboard({ session, onOpenDocument, onBack }
   };
 
   const openDocument = async (docId) => {
+    if (!supabase) return;
     const { data, error } = await supabase
       .from('documents')
       .select('*')
@@ -189,6 +188,7 @@ export default function FlumenWriteDashboard({ session, onOpenDocument, onBack }
   };
 
   const deleteDocument = async (e, docId) => {
+    if (!supabase) return;
     e.stopPropagation();
     if (!window.confirm('Delete this document? This cannot be undone.')) return;
     await supabase.from('documents').delete().eq('id', docId);
