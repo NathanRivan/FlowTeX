@@ -7,7 +7,7 @@ const MathLivePreview = ({ active, latex, coords, suggestions, selectedIdx }) =>
 
   useEffect(() => {
     if (!active) {
-      window.flowtexMathErrorCancel?.();
+      window.flumenwriteMathErrorCancel?.();
       return;
     }
     try {
@@ -17,13 +17,13 @@ const MathLivePreview = ({ active, latex, coords, suggestions, selectedIdx }) =>
       );
       setHtml(rendered);
       if (rendered.includes('katex-error')) {
-        window.flowtexMathError?.();
+        window.flumenwriteMathError?.();
       } else {
-        window.flowtexMathErrorCancel?.();
+        window.flumenwriteMathErrorCancel?.();
       }
     } catch (e) {
       setHtml(`<span class="math-live-error">${e.message}</span>`);
-      window.flowtexMathError?.();
+      window.flumenwriteMathError?.();
     }
   }, [latex, active]);
 
@@ -47,7 +47,7 @@ const MathLivePreview = ({ active, latex, coords, suggestions, selectedIdx }) =>
             <div
               key={cmd}
               className={`math-live-ac-item${i === selectedIdx ? ' selected' : ''}`}
-              onClick={() => window.flowtexMathInsertSuggestion?.(cmd)}
+              onClick={() => window.flumenwriteMathInsertSuggestion?.(cmd)}
             >
               <span className="math-live-ac-cmd">\{cmd}</span>
             </div>

@@ -76,10 +76,10 @@ export const KatexExtension = Node.create({
 
       dom.addEventListener('click', (e) => {
         const pos = getPos?.();
-        if (pos !== undefined && window.flowtexMathEdit) {
+        if (pos !== undefined && window.flumenwriteMathEdit) {
           e.stopPropagation();
           // Pass getPos as a function, along with initial latex and isDisplay flag
-          window.flowtexMathEdit(() => getPos(), node.attrs.latex, false);
+          window.flumenwriteMathEdit(() => getPos(), node.attrs.latex, false);
         }
       });
 

@@ -3,7 +3,7 @@ import { TextSelection } from 'prosemirror-state';
 import { autoPageBreakPlugin } from './AutoPageBreakPlugin';
 
 // Read live so margin changes take effect immediately.
-const getBottomPaddingPx = () => window.flowtexPageSettings?.marginBottomPx ?? 96;
+const getBottomPaddingPx = () => window.flumenwritePageSettings?.marginBottomPx ?? 96;
 // If the cursor is within this many px of the content-area bottom, treat the
 // page as "full" so Enter routes the new paragraph to the next page.
 const NEAR_BOTTOM_PX = 40;
@@ -51,7 +51,7 @@ export const AutoPageBreak = Extension.create({
 
         const cursorCoords = editor.view.coordsAtPos($from.pos);
         const contentRect  = contentEl.getBoundingClientRect();
-        const columns = window.flowtexPageSettings?.columns ?? 1;
+        const columns = window.flumenwritePageSettings?.columns ?? 1;
 
         if (columns === 2) {
           // Two-column: only route to the next page when the cursor is at the

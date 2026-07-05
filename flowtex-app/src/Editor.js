@@ -67,7 +67,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const [mathModal, setMathModal] = useState({
     open: false, latex: '', nodePos: null,
   });
-  const [mathZone, setMathZone] = useState({
+  const [mathZone, setMathZone] = useState({                                            
     active: false, latex: '', coords: null, suggestions: [], selectedIdx: 0,
   });
 
@@ -138,9 +138,11 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const handleMathComment = (pos, latex) => {
     const id = Date.now().toString();
     setCommentThreads(prev => [...prev, {
-      id, text: `Equation: ${latex}`, replies: [], resolved: false,
+      id, quote: `Equation: ${latex}`, text: '', replies: [], resolved: false,
       createdAt: new Date(), pos,
     }]);
+    setShowComments(true);
+    setActiveCommentId(id);
   };
 
   const [pageSettings, setPageSettings] = useState(
@@ -154,6 +156,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const docIdRef = useRef(docProp?.id || null);
   const saveTimerRef = useRef(null);
   const pageSettingsRef = useRef(pageSettings);
+  const commentThreadsRef = useRef([]);
   const mathZoneActiveRef = useRef(false);
   const [pageIndicator, setPageIndicator] = useState({ current: 1, total: 1, show: false, top: 200 });
   const pageIndicatorTimerRef = useRef(null);
@@ -165,15 +168,17 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const [pdfStatus, setPdfStatus] = useState('');
   const [preamble, setPreamble] = useState(false);
   const [showPreamble, setShowPreamble] = useState(false);
-  const [commentThreads, setCommentThreads] = useState([]);
+  const [commentThreads, setCommentThreads] = useState(docProp?.content?.commentThreads || []);
   const [activeCommentId, setActiveCommentId] = useState(null);
   const [showComments, setShowComments] = useState(false);
 
-  const addCommentThread = (threadId, text) => {
+  const addCommentThread = (threadId, quote) => {
     setCommentThreads(prev => [...prev, {
-      id: threadId, text: `Commented: "${text}"`, replies: [],
+      id: threadId, quote, text: '', replies: [],
       resolved: false, createdAt: new Date(),
     }]);
+    setShowComments(true);
+    setActiveCommentId(threadId);
   };
 
   const removeCommentMark = (commentId) => {
@@ -314,8 +319,10 @@ const Editor = ({ session, document: docProp, onBack }) => {
     }
   }, [editor, isEditorReady, showLoading]);
 
+  useEffect(() => { commentThreadsRef.current = commentThreads; }, [commentThreads]);
+
   useEffect(() => {
-    window.flowtexMacros = parseMacros(preamble);
+    window.flumenwriteMacros = parseMacros(preamble);
   }, [preamble]);
 
   useEffect(() => {
@@ -331,7 +338,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
     root.style.setProperty('--page-font-size',     `${fontSize}pt`);
     root.style.setProperty('--page-line-spacing',  lineSpacing);
     root.setAttribute('data-columns', String(columns));
-    window.flowtexPageSettings = {
+    window.flumenwritePageSettings = {
       pageHeightPx:   size.heightPx,
       marginBottomPx: Math.round(marginBottom * 96),
       columns,
@@ -405,11 +412,11 @@ const Editor = ({ session, document: docProp, onBack }) => {
 
   useEffect(() => {
     if (!editor) return;
-    window.flowtexMathEdit = (getPosFn, latex, isDisplay) => {
+    window.flumenwriteMathEdit = (getPosFn, latex, isDisplay) => {
       setShowComments(false);
       setMathModal({ open: true, latex, getPos: getPosFn, isDisplay: !!isDisplay });
     };
-    return () => { delete window.flowtexMathEdit; };
+    return () => { delete window.flumenwriteMathEdit; };
   }, [editor]);
 
 
@@ -437,30 +444,30 @@ const Editor = ({ session, document: docProp, onBack }) => {
 
   // math.open — fires when the math zone first becomes active.
   useEffect(() => {
-    window.flowtexMathZoneUpdate = (update) => {
+    window.flumenwriteMathZoneUpdate = (update) => {
       if (update.active && !mathZoneActiveRef.current) {
         SoundEngine.play('math.open');
       }
       if (update.active !== undefined) mathZoneActiveRef.current = update.active;
       setTimeout(() => setMathZone(prev => ({ ...prev, ...update })), 0);
     };
-    return () => { delete window.flowtexMathZoneUpdate; };
+    return () => { delete window.flumenwriteMathZoneUpdate; };
   }, []);
 
   // math.commit — fires when $..$ text is converted to a KaTeX node (from MathInputPlugin)
   // OR when the MathEditModal saves an updated equation.
   useEffect(() => {
-    window.flowtexMathCommit = () => SoundEngine.play('math.commit');
-    return () => { delete window.flowtexMathCommit; };
+    window.flumenwriteMathCommit = () => SoundEngine.play('math.commit');
+    return () => { delete window.flumenwriteMathCommit; };
   }, []);
 
   // math.error — scheduleError/cancelError are called from MathLivePreview.
   useEffect(() => {
-    window.flowtexMathError       = () => SoundEngine.scheduleError();
-    window.flowtexMathErrorCancel = () => SoundEngine.cancelError();
+    window.flumenwriteMathError       = () => SoundEngine.scheduleError();
+    window.flumenwriteMathErrorCancel = () => SoundEngine.cancelError();
     return () => {
-      delete window.flowtexMathError;
-      delete window.flowtexMathErrorCancel;
+      delete window.flumenwriteMathError;
+      delete window.flumenwriteMathErrorCancel;
       SoundEngine.cancelError();
     };
   }, []);
@@ -527,7 +534,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
         await supabase
           .from('documents')
           .update({
-            content: { ...editor.getJSON(), pageSettings: pageSettingsRef.current },
+            content: { ...editor.getJSON(), pageSettings: pageSettingsRef.current, commentThreads: commentThreadsRef.current },
             updated_at: new Date().toISOString(),
           })
           .eq('id', docIdRef.current);
@@ -695,8 +702,9 @@ const Editor = ({ session, document: docProp, onBack }) => {
                       const { from, to } = editor.state.selection;
                       if (from === to) return;
                       const commentId = Date.now().toString();
+                      const quote = editor.state.doc.textBetween(from, to, ' ');
                       editor.chain().focus().toggleComment(commentId).run();
-                      addCommentThread(commentId, window.getSelection().toString());
+                      addCommentThread(commentId, quote);
                     }}
                     disabled={editor.state.selection.empty}
                     title="Add comment"
@@ -786,7 +794,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
                   position: 'fixed', top: contextMenu.y, left: contextMenu.x,
                   background: 'white', border: '1px solid var(--border)',
                   borderRadius: 'var(--radius-md)', boxShadow: 'var(--shadow-md)',
-                  zIndex: 9999, padding: '4px', minWidth: '196px',
+padding: '4px', minWidth: '196px',
                 }}
               >
                 <div className={`context-menu-item ${contextMenu.hasSelection ? '' : 'disabled'}`} onClick={(e) => {
@@ -852,7 +860,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
 
           <div className="floating-right-actions">
             <button
-              className={`floating-action-btn${showComments ? ' disabled' : ''}`}
+              className={`floating-action-btn${showComments ? ' active' : ''}`}
               onClick={() => {
                 setShowComments(prev => {
                   if (!prev) setMathModal({ open: false, latex: '', nodePos: null });
@@ -861,7 +869,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
               }}
               title={showComments ? 'Hide Comments' : 'Show Comments'}
             >
-              💬
+              <MessageSquare size={16} />
             </button>
           </div>
 
@@ -918,7 +926,11 @@ const Editor = ({ session, document: docProp, onBack }) => {
               threads={commentThreads}
               activeId={activeCommentId}
               onSelect={id => { setActiveCommentId(id); scrollToComment(id); }}
-              onReply={(id, text) => setCommentThreads(prev => prev.map(t => t.id === id ? { ...t, replies: [...t.replies, text] } : t))}
+              onReply={(id, value) => setCommentThreads(prev => prev.map(t =>
+                t.id === id
+                  ? t.text ? { ...t, replies: [...t.replies, value] } : { ...t, text: value }
+                  : t
+              ))}
               onResolve={id => { removeCommentMark(id); setCommentThreads(prev => prev.map(t => t.id === id ? { ...t, resolved: true } : t)); }}
               onDelete={id => { removeCommentMark(id); setCommentThreads(prev => prev.filter(t => t.id !== id)); }}
               onClose={() => setShowComments(false)}

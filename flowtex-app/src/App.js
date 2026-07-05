@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Editor from './Editor';
 import AuthPage from './AuthPage';
+import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
 import FlumenWriteDashboard from './FlumenWriteDashboard';
 import { supabase } from './supabase';
@@ -9,6 +10,7 @@ import 'katex/dist/katex.min.css';
 
 function App() {
   const [session, setSession] = useState(undefined);
+  const [showAuth, setShowAuth] = useState(false);
   const [activeProduct, setActiveProduct] = useState(null);
   const [activeDocument, setActiveDocument] = useState(null);
 
@@ -27,7 +29,10 @@ function App() {
 
   if (session === undefined) return null;
 
-  if (!session) return <div className="App"><AuthPage /></div>;
+  if (!session) {
+    if (showAuth) return <div className="App"><AuthPage onBack={() => setShowAuth(false)} /></div>;
+    return <div className="App"><LandingPage onGetStarted={() => setShowAuth(true)} /></div>;
+  }
 
   if (activeProduct === 'flumenwrite') {
     if (activeDocument !== null) {

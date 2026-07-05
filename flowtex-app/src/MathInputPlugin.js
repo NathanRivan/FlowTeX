@@ -124,7 +124,7 @@ export const MathInputPlugin = Extension.create({
       acSuggestions = [];
       acSelectedIdx = 0;
       prevSuggestionsKey = '';
-      window.flowtexMathZoneUpdate?.({ suggestions: [], selectedIdx: 0 });
+      window.flumenwriteMathZoneUpdate?.({ suggestions: [], selectedIdx: 0 });
     }
 
     function emitZoneUpdate(view) {
@@ -135,7 +135,7 @@ export const MathInputPlugin = Extension.create({
           acSelectedIdx = 0;
           prevSuggestionsKey = '';
         }
-        window.flowtexMathZoneUpdate?.({ active: false });
+        window.flumenwriteMathZoneUpdate?.({ active: false });
         return;
       }
 
@@ -157,7 +157,7 @@ export const MathInputPlugin = Extension.create({
       }
 
       const coords = view.coordsAtPos(to);
-      window.flowtexMathZoneUpdate?.({
+      window.flumenwriteMathZoneUpdate?.({
         active: true,
         latex,
         coords,
@@ -187,8 +187,8 @@ export const MathInputPlugin = Extension.create({
                   const node = state.schema.nodes[nodeType]?.create({ latex });
                   if (node) {
                     dispatch(state.tr.replaceWith(from, to, node));
-                    window.flowtexMathZoneUpdate?.({ active: false });
-                    window.flowtexMathCommit?.();
+                    window.flumenwriteMathZoneUpdate?.({ active: false });
+                    window.flumenwriteMathCommit?.();
                   }
                 }
                 converting = false;
@@ -202,13 +202,13 @@ export const MathInputPlugin = Extension.create({
                 if (event.key === 'ArrowDown') {
                   event.preventDefault();
                   acSelectedIdx = Math.min(acSelectedIdx + 1, acSuggestions.length - 1);
-                  window.flowtexMathZoneUpdate?.({ selectedIdx: acSelectedIdx });
+                  window.flumenwriteMathZoneUpdate?.({ selectedIdx: acSelectedIdx });
                   return true;
                 }
                 if (event.key === 'ArrowUp') {
                   event.preventDefault();
                   acSelectedIdx = Math.max(acSelectedIdx - 1, 0);
-                  window.flowtexMathZoneUpdate?.({ selectedIdx: acSelectedIdx });
+                  window.flumenwriteMathZoneUpdate?.({ selectedIdx: acSelectedIdx });
                   return true;
                 }
                 if (event.key === 'Tab' || event.key === 'Enter') {
@@ -221,7 +221,7 @@ export const MathInputPlugin = Extension.create({
                   acSuggestions = [];
                   acSelectedIdx = 0;
                   prevSuggestionsKey = '';
-                  window.flowtexMathZoneUpdate?.({ suggestions: [], selectedIdx: 0 });
+                  window.flumenwriteMathZoneUpdate?.({ suggestions: [], selectedIdx: 0 });
                   return true;
                 }
               }
@@ -249,7 +249,7 @@ export const MathInputPlugin = Extension.create({
 
         view(editorView) {
           // Expose suggestion inserter so the React overlay can call it on click.
-          window.flowtexMathInsertSuggestion = (command) => insertSuggestion(editorView, command);
+          window.flumenwriteMathInsertSuggestion = (command) => insertSuggestion(editorView, command);
 
           return {
             update(view) {
@@ -257,7 +257,7 @@ export const MathInputPlugin = Extension.create({
               if (!converting) emitZoneUpdate(view);
             },
             destroy() {
-              delete window.flowtexMathInsertSuggestion;
+              delete window.flumenwriteMathInsertSuggestion;
             },
           };
         },

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { supabase } from './supabase';
 import './AuthPage.css';
 
-export default function AuthPage() {
+export default function AuthPage({ onBack }) {
   const [mode, setMode] = useState('signin');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -43,6 +43,15 @@ export default function AuthPage() {
   return (
     <div className="auth-page">
       <div className="auth-container">
+
+      {onBack && (
+        <button className="auth-back-btn" onClick={onBack} aria-label="Back to landing page">
+          <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+            <path d="M15 9H3M3 9L7.5 13.5M3 9L7.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+          Back
+        </button>
+      )}
 
       {/* ── LEFT PANEL ── */}
       <div className="auth-brand">

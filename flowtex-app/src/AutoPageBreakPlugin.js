@@ -1,8 +1,8 @@
 import { Plugin, PluginKey } from 'prosemirror-state';
 
 // Read live from window so page size changes take effect without a reload.
-const getPageHeight = () => window.flowtexPageSettings?.pageHeightPx ?? 1056;
-const getColumns   = () => window.flowtexPageSettings?.columns ?? 1;
+const getPageHeight = () => window.flumenwritePageSettings?.pageHeightPx ?? 1056;
+const getColumns   = () => window.flumenwritePageSettings?.columns ?? 1;
 
 export const paginationKey = new PluginKey('pagination');
 

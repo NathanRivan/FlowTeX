@@ -2,7 +2,7 @@
 export function preprocessMathForDisplay(latex) {
   if (!latex) return '';
 // Expand custom macros
-  const macros = window.flowtexMacros || {};
+  const macros = window.flumenwriteMacros || {};
   let expanded = latex;
   for (const [name, expansion] of Object.entries(macros)) {
     const regex = new RegExp(`\\\\${name}(?![a-zA-Z])`, 'g');

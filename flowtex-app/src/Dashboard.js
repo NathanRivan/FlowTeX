@@ -147,13 +147,19 @@ function FoundersView() {
 export default function Dashboard({ session, onLaunch }) {
   const [page, setPage] = useState('home');
 
+  const isAuthed = !!session;
+
   const displayName =
     session?.user?.user_metadata?.full_name ||
     session?.user?.email?.split('@')[0] ||
     'there';
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
+    if (isAuthed) {
+      await supabase.auth.signOut();
+    } else {
+      onLaunch();  /* ponytail: reuse onLaunch as "sign in" trigger for unauthed */
+    }
   };
 
   const navItems = [
@@ -182,8 +188,8 @@ export default function Dashboard({ session, onLaunch }) {
         </nav>
 
         <div className="dash-sidebar-footer">
-          <p className="dash-sidebar-user">{displayName}</p>
-          <button className="dash-sidebar-signout" onClick={handleSignOut}>Sign out</button>
+          <p className="dash-sidebar-user">{isAuthed ? displayName : 'Guest'}</p>
+          <button className="dash-sidebar-signout" onClick={handleSignOut}>{isAuthed ? 'Sign out' : 'Sign in'}</button>
         </div>
       </aside>
 

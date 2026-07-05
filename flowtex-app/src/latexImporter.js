@@ -16,8 +16,8 @@ export function importLaTeX(latex) {
     const bodyStart = html.search(/\\(section|chapter|subsection|paragraph)/);
     if (bodyStart > 0) html = html.substring(bodyStart);
   }
-  if (window.flowtexMacros) {
-    html = expandMacros(html, window.flowtexMacros);
+  if (window.flumenwriteMacros) {
+    html = expandMacros(html, window.flumenwriteMacros);
   }
 
   // 2. Remove comments (lines starting with %)
