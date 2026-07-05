@@ -119,7 +119,7 @@ const products = [
     id: 'flumenwrite',
     name: 'FlumenWrite',
     icon: 'f',
-    desc: 'A document editor built for deep work — rich text, LaTeX math, and beautiful typesetting in one place.',
+    desc: 'A document editor built for deep work — rich text, LaTeX math, and elegant typesetting in one place.',
     available: true,
   },
   {
@@ -286,7 +286,6 @@ function DemoSection({ onGetStarted }) {
           <div className="demo-toolbar-right">
             <span className="demo-toolbar-badge">LaTeX math</span>
             <span className="demo-toolbar-badge">Rich text</span>
-            <span className="demo-toolbar-badge">$ \$ $</span>
           </div>
         </div>
 
@@ -414,7 +413,7 @@ const founders = [
     name: 'Clement Rivan',
     role: 'Founder & CEO',
     initials: 'CR',
-    bio: "Clement started FlumenWorks with a simple frustration: the tools for serious intellectual work were either too simple or too complex. FlumenWorks is his answer — software that respects the user's intelligence.",
+    bio: "Clement started FlumenWorks with a simple frustration: the tools for serious intellectual work were either too simple or too complex. FlumenWorks is his answer, a tool that respects the user's intelligence.",
   },
 ];
 
