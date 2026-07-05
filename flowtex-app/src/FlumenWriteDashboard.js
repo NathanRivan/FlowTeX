@@ -132,6 +132,10 @@ export default function FlumenWriteDashboard({ session, onOpenDocument, onBack }
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
 
+  if (!supabase) {
+    return <div className="fw-dash"><p>Supabase is not configured.</p></div>;
+  }
+
   const displayName =
     session?.user?.user_metadata?.full_name ||
     session?.user?.email?.split('@')[0] ||

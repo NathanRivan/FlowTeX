@@ -17,6 +17,12 @@ export default function AuthPage({ onBack }) {
     setMessage('');
     setLoading(true);
 
+    if (!supabase) {
+      setError('Supabase is not configured. Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY environment variables.');
+      setLoading(false);
+      return;
+    }
+
     if (mode === 'signup') {
       const { error } = await supabase.auth.signUp({ email, password, options: { data: { full_name: name }, emailRedirectTo: window.location.origin } });
       if (error) {
@@ -33,6 +39,10 @@ export default function AuthPage({ onBack }) {
   };
 
   const handleGoogle = async () => {
+    if (!supabase) {
+      setError('Supabase is not configured. Please set REACT_APP_SUPABASE_URL and REACT_APP_SUPABASE_ANON_KEY environment variables.');
+      return;
+    }
     const { error } = await supabase.auth.signInWithOAuth({
       provider: 'google',
       options: { redirectTo: window.location.origin },

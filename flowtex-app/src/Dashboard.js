@@ -156,7 +156,9 @@ export default function Dashboard({ session, onLaunch }) {
 
   const handleSignOut = async () => {
     if (isAuthed) {
-      await supabase.auth.signOut();
+      if (supabase) {
+        await supabase.auth.signOut();
+      }
     } else {
       onLaunch();  /* ponytail: reuse onLaunch as "sign in" trigger for unauthed */
     }

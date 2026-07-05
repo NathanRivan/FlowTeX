@@ -15,6 +15,11 @@ function App() {
   const [activeDocument, setActiveDocument] = useState(null);
 
   useEffect(() => {
+    if (!supabase) {
+      setSession(null);
+      return;
+    }
+
     supabase.auth.getSession().then(({ data }) => {
       setSession(data.session);
     });
