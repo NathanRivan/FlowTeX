@@ -171,13 +171,6 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const [commentThreads, setCommentThreads] = useState(docProp?.content?.commentThreads || []);
   const [activeCommentId, setActiveCommentId] = useState(null);
   const [showComments, setShowComments] = useState(false);
-  const [documentFont, setDocumentFont] = useState(() => {
-    // Initialize the CSS variable on mount
-    const defaultVal = "'KaTeX_Main', 'WebCM Serif 10', serif";
-    document.documentElement.style.setProperty('--document-font-family', defaultVal);
-    return defaultVal;
-  });
-
   const addCommentThread = (threadId, quote) => {
     setCommentThreads(prev => [...prev, {
       id: threadId, quote, text: '', replies: [],
@@ -632,25 +625,46 @@ const Editor = ({ session, document: docProp, onBack }) => {
 
                 <div className="toolbar-group">
                   <select
-                    value={documentFont}
+                    value={(() => {
+                      const fonts = [
+                        '',
+                        'KaTeX_Main, WebCM Serif 10, serif',
+                        'sans-serif',
+                        'monospace',
+                        'Arial, sans-serif',
+                        'Times New Roman, serif',
+                        'Courier New, monospace',
+                        'Georgia, serif',
+                        'Helvetica, sans-serif',
+                        'Verdana, sans-serif',
+                        'Tahoma, sans-serif',
+                        'Lucida Console, monospace',
+                        'Impact, fantasy',
+                      ];
+                      return fonts.find(f => f && editor.isActive('textStyle', { fontFamily: f })) || '';
+                    })()}
                     onChange={e => {
                       const f = e.target.value;
-                      setDocumentFont(f);
-                      document.documentElement.style.setProperty('--document-font-family', f);
+                      if (!f) {
+                        editor.chain().focus().unsetFontFamily().run();
+                      } else {
+                        editor.chain().focus().setFontFamily(f).run();
+                      }
                     }}
                   >
-                    <option value="'KaTeX_Main', 'WebCM Serif 10', serif">Computer Modern</option>
-                    <option value='sans-serif'>Sans-Serif</option>
-                    <option value='monospace'>Monospace</option>
-                    <option value='Arial, sans-serif'>Arial</option>
-                    <option value='"Times New Roman", serif'>Times New Roman</option>
-                    <option value='"Courier New", monospace'>Courier New</option>
-                    <option value='Georgia, serif'>Georgia</option>
-                    <option value='Helvetica, sans-serif'>Helvetica</option>
-                    <option value='Verdana, sans-serif'>Verdana</option>
-                    <option value='Tahoma, sans-serif'>Tahoma</option>
-                    <option value='"Lucida Console", monospace'>Lucida Console</option>
-                    <option value='Impact, fantasy'>Impact</option>
+                    <option value="">Default</option>
+                    <option value="KaTeX_Main, WebCM Serif 10, serif">Computer Modern</option>
+                    <option value="sans-serif">Sans-Serif</option>
+                    <option value="monospace">Monospace</option>
+                    <option value="Arial, sans-serif">Arial</option>
+                    <option value="Times New Roman, serif">Times New Roman</option>
+                    <option value="Courier New, monospace">Courier New</option>
+                    <option value="Georgia, serif">Georgia</option>
+                    <option value="Helvetica, sans-serif">Helvetica</option>
+                    <option value="Verdana, sans-serif">Verdana</option>
+                    <option value="Tahoma, sans-serif">Tahoma</option>
+                    <option value="Lucida Console, monospace">Lucida Console</option>
+                    <option value="Impact, fantasy">Impact</option>
                   </select>
                   <FontSizeControl editor={editor} />
                 </div>
