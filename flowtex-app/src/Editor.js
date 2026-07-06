@@ -171,6 +171,12 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const [commentThreads, setCommentThreads] = useState(docProp?.content?.commentThreads || []);
   const [activeCommentId, setActiveCommentId] = useState(null);
   const [showComments, setShowComments] = useState(false);
+  const [documentFont, setDocumentFont] = useState(() => {
+    // Initialize the CSS variable on mount
+    const defaultVal = "'KaTeX_Main', 'WebCM Serif 10', serif";
+    document.documentElement.style.setProperty('--document-font-family', defaultVal);
+    return defaultVal;
+  });
 
   const addCommentThread = (threadId, quote) => {
     setCommentThreads(prev => [...prev, {
@@ -625,11 +631,14 @@ const Editor = ({ session, document: docProp, onBack }) => {
                 </div>
 
                 <div className="toolbar-group">
-                  <select value={editor.isActive('fontFamily') ? undefined : ''} onChange={e => {
-                    const f = e.target.value;
-                    if (f) editor.chain().focus().setFontFamily(f).run();
-                    else editor.chain().focus().setFontFamily("'KaTeX_Main', 'WebCM Serif 10', serif").run();
-                  }}>
+                  <select
+                    value={documentFont}
+                    onChange={e => {
+                      const f = e.target.value;
+                      setDocumentFont(f);
+                      document.documentElement.style.setProperty('--document-font-family', f);
+                    }}
+                  >
                     <option value="'KaTeX_Main', 'WebCM Serif 10', serif">Computer Modern</option>
                     <option value='sans-serif'>Sans-Serif</option>
                     <option value='monospace'>Monospace</option>
