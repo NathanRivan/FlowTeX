@@ -27,13 +27,14 @@ const staggerContainer = {
   },
 };
 
-function InViewSection({ children, className, delay = 0 }) {
+function InViewSection({ children, className, delay = 0, ...rest }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-80px' });
   return (
     <motion.div
       ref={ref}
       className={className}
+      {...rest}
       initial={{ opacity: 0, y: 40 }}
       animate={isInView ? { opacity: 1, y: 0 } : {}}
       transition={{ duration: 0.6, ease: [0.25, 0.1, 0.25, 1], delay }}
@@ -138,7 +139,7 @@ const products = [
   },
 ];
 
-function ProductsSection() {
+function ProductsSection({ onGetStarted }) {
   return (
     <InViewSection className="landing-products" id="products">
       <div className="landing-section-header">
@@ -155,10 +156,14 @@ function ProductsSection() {
         {products.map((p, i) => (
           <motion.div
             key={p.id}
-            className={`landing-product-card ${p.available ? 'available' : ''}`}
+            className={`landing-product-card ${p.available ? 'available clickable' : ''}`}
             variants={fadeInUp}
             custom={i}
             whileHover={p.available ? { y: -4, boxShadow: '0 12px 40px rgba(0,0,0,0.08)' } : {}}
+            onClick={p.available ? onGetStarted : undefined}
+            tabIndex={p.available ? 0 : -1}
+            role={p.available ? 'button' : undefined}
+            onKeyDown={p.available ? (e) => { if (e.key === 'Enter') onGetStarted(); } : undefined}
           >
             <div className="landing-product-icon">{p.icon}</div>
             <h3 className="landing-product-name">{p.name}</h3>
@@ -536,7 +541,7 @@ export default function LandingPage({ onGetStarted }) {
       <Navbar onGetStarted={onGetStarted} />
       <main>
         <HeroSection onGetStarted={onGetStarted} />
-        <ProductsSection />
+        <ProductsSection onGetStarted={onGetStarted} />
         <DemoSection onGetStarted={onGetStarted} />
         <AboutSection />
         <FoundersSection />

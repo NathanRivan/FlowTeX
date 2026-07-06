@@ -625,12 +625,12 @@ const Editor = ({ session, document: docProp, onBack }) => {
                 </div>
 
                 <div className="toolbar-group">
-                  <select onChange={e => {
+                  <select value={editor.isActive('fontFamily') ? undefined : ''} onChange={e => {
                     const f = e.target.value;
                     if (f) editor.chain().focus().setFontFamily(f).run();
-                    else editor.chain().focus().unsetFontFamily().run();
+                    else editor.chain().focus().setFontFamily("'KaTeX_Main', 'WebCM Serif 10', serif").run();
                   }}>
-                    <option value='"Computer Modern Serif", serif'>Computer Modern</option>
+                    <option value="'KaTeX_Main', 'WebCM Serif 10', serif">Computer Modern</option>
                     <option value='sans-serif'>Sans-Serif</option>
                     <option value='monospace'>Monospace</option>
                     <option value='Arial, sans-serif'>Arial</option>

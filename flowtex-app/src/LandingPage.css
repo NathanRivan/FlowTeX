@@ -269,6 +269,10 @@
   gap: 24px;
 }
 
+.landing-product-card.clickable {
+  cursor: pointer;
+}
+
 .landing-product-card {
   background: var(--lp-surface);
   border: 1px solid var(--lp-border);
