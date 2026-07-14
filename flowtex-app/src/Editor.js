@@ -10,6 +10,7 @@ import { TextStyle } from '@tiptap/extension-text-style';
 import { Highlight } from '@tiptap/extension-highlight';
 import { FontSize } from 'tiptap-extension-font-size';
 import { FontFamily } from '@tiptap/extension-font-family';
+import { Image } from '@tiptap/extension-image';
 import { KatexExtension } from './KatexExtension';
 import { KatexDisplayExtension } from './KatexDisplayExtension';
 import { MathInputPlugin } from './MathInputPlugin';
@@ -88,6 +89,16 @@ export function resolveNodePos(doc, guessPos, nodeTypeName, matches) {
     return true;
   });
   return found;
+}
+
+// A screenshot or image copied from outside the browser arrives on the
+// clipboard as raw file data, not as an <img> tag or markdown — ProseMirror's
+// built-in HTML paste parsing (which is all the Image extension gives you
+// out of the box) never sees it. This pulls the image File out, if present.
+export function extractPastedImageFile(clipboardData) {
+  const items = Array.from(clipboardData?.items || []);
+  const imageItem = items.find((item) => item.type?.startsWith('image/'));
+  return imageItem ? imageItem.getAsFile() : null;
 }
 
 const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
@@ -289,6 +300,9 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
       ColumnSpan,
       LatexTableExtension,
       CiteRefValidationPlugin,
+      // ponytail: pasted images are inlined as base64 (no upload server yet) —
+      // move to Supabase Storage + a real src URL if documents start bloating.
+      Image.configure({ allowBase64: true }),
       StarterKit.configure({ document: false, undoRedo: false }), // our PagedDocument handles the doc node; Yjs owns undo/redo
       Collaboration.configure({ document: ydocRef.current }),
     ],
@@ -363,6 +377,18 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
           default:
             return false;
         }
+      },
+      handlePaste: (view, event) => {
+        const file = extractPastedImageFile(event.clipboardData);
+        if (!file) return false;
+        event.preventDefault();
+        const reader = new FileReader();
+        reader.onload = () => {
+          const node = view.state.schema.nodes.image.create({ src: reader.result });
+          view.dispatch(view.state.tr.replaceSelectionWith(node));
+        };
+        reader.readAsDataURL(file);
+        return true;
       },
     },
   });
