@@ -7,7 +7,13 @@ import './FlumenWriteDashboard.css';
 
 const INITIAL_DOC = {
   type: 'doc',
-  content: [{ type: 'page', content: [{ type: 'paragraph' }] }],
+  content: [{
+    type: 'page',
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Welcome to the editor! Type math inline with $....$, or start a new line with $$ for a display equation.' }],
+    }],
+  }],
 };
 
 const FEATURED_TEMPLATE_KEYS = ['blank', 'ieee', 'thesis', 'cv'];

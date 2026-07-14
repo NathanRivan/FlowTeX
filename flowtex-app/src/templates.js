@@ -58,7 +58,7 @@ export const TEMPLATES = [
     label: 'Blank Document',
     description: 'A clean single-column page to start from scratch.',
     pageSettings: PS.blank,
-    content: docOf([para(null)]),
+    content: docOf([para('Welcome to the editor! Type math inline with $....$, or start a new line with $$ for a display equation.')]),
   },
 
   {
