@@ -67,6 +67,29 @@ const INITIAL_DOC = {
   }],
 };
 
+// A node's captured getPos() only stays valid while its NodeView instance is
+// still mounted. Auto-pagination moves blocks between pages by delete+insert,
+// which recreates the NodeView at a new position — so a getPos() closure
+// captured when a math/table modal opened can go stale by the time the user
+// hits Apply, and setNodeMarkup(staleNodePos, ...) throws "No node at given
+// position". Falls back to relocating the node by its original attrs.
+export function resolveNodePos(doc, guessPos, nodeTypeName, matches) {
+  if (typeof guessPos === 'number' && guessPos >= 0 && guessPos < doc.content.size) {
+    const node = doc.nodeAt(guessPos);
+    if (node && node.type.name === nodeTypeName && matches(node.attrs)) return guessPos;
+  }
+  let found = null;
+  doc.descendants((node, pos) => {
+    if (found !== null) return false;
+    if (node.type.name === nodeTypeName && matches(node.attrs)) {
+      found = pos;
+      return false;
+    }
+    return true;
+  });
+  return found;
+}
+
 const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   // ---- STATE ----
   const [, setUpdate] = useState(0);
@@ -482,15 +505,6 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
       setMathModal({ open: true, latex, getPos: getPosFn, isDisplay: !!isDisplay });
     };
     return () => { delete window.flumenwriteMathEdit; };
-  }, [editor]);
-
-  useEffect(() => {
-    if (!editor) return;
-    window.flumenwriteTableEdit = (getPosFn, raw) => {
-      setShowComments(false);
-      setTableModal({ open: true, raw, getPos: getPosFn });
-    };
-    return () => { delete window.flumenwriteTableEdit; };
   }, [editor]);
 
   useEffect(() => {
@@ -995,10 +1009,16 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
                 initialLatex={mathModal.latex}
                 onUpdate={(newLatex) => {
                   if (editor && mathModal.getPos) {
-                    const currentPos = mathModal.getPos();
-                    if (currentPos !== undefined) {
+                    const nodeTypeName = mathModal.isDisplay ? 'katexDisplay' : 'katex';
+                    const pos = resolveNodePos(
+                      editor.state.doc,
+                      mathModal.getPos(),
+                      nodeTypeName,
+                      (attrs) => attrs.latex === mathModal.latex
+                    );
+                    if (pos !== null) {
                       editor.view.dispatch(
-                        editor.state.tr.setNodeMarkup(currentPos, null, { latex: newLatex })
+                        editor.state.tr.setNodeMarkup(pos, null, { latex: newLatex })
                       );
                       SoundEngine.play('math.commit');
                     }
@@ -1015,10 +1035,15 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
                 initialRaw={tableModal.raw}
                 onUpdate={(newRaw) => {
                   if (editor && tableModal.getPos) {
-                    const currentPos = tableModal.getPos();
-                    if (currentPos !== undefined) {
+                    const pos = resolveNodePos(
+                      editor.state.doc,
+                      tableModal.getPos(),
+                      'latexTable',
+                      (attrs) => attrs.raw === tableModal.raw
+                    );
+                    if (pos !== null) {
                       editor.view.dispatch(
-                        editor.state.tr.setNodeMarkup(currentPos, null, { raw: newRaw })
+                        editor.state.tr.setNodeMarkup(pos, null, { raw: newRaw })
                       );
                       SoundEngine.play('math.commit');
                     }
