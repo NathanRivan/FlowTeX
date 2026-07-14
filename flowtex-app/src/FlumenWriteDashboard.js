@@ -11,7 +11,7 @@ const INITIAL_DOC = {
     type: 'page',
     content: [{
       type: 'paragraph',
-      content: [{ type: 'text', text: 'Welcome to the editor! Type math inline with $....$, or start a new line with $$ for a display equation.' }],
+      content: [{ type: 'text', text: 'Welcome to the editor! Type math inline with $x^2$, or start a new line with $$E=mc^2$$ for a display equation.' }],
     }],
   }],
 };

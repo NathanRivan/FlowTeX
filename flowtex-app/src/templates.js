@@ -58,7 +58,7 @@ export const TEMPLATES = [
     label: 'Blank Document',
     description: 'A clean single-column page to start from scratch.',
     pageSettings: PS.blank,
-    content: docOf([para('Welcome to the editor! Type math inline with $....$, or start a new line with $$ for a display equation.')]),
+    content: docOf([para('Welcome to the editor! Type math inline with $x^2$, or start a new line with $$E=mc^2$$ for a display equation.')]),
   },
 
   {

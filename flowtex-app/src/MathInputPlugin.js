@@ -4,8 +4,37 @@ import { MATH_COMMANDS, commandName } from './mathCommands';
 
 const MAX_AC_RESULTS = 10;
 
-// Find an unclosed single $ before the cursor in the current textblock.
-// Returns { from, to, latex } where from = position of the $, to = cursor pos, latex = text inside.
+// Pure scanner: walks text left-to-right tracking $ / $$ delimiter parity
+// and reports the still-open zone at the end of the string, if any.
+// Exported for unit testing.
+//
+// A backward scan (the previous implementation) can't tell a *closing*
+// single $ from an *opening* one — it saw the trailing $ of any earlier,
+// already-complete "$x$" pair and treated it as a freshly opened zone,
+// which spuriously reopened the math popup for any text typed afterward.
+// Forward parity tracking treats each $/$$ as a toggle instead.
+export function scanOpenMathZone(text) {
+  let mode = null; // null | 'single' | 'double'
+  let openAt = -1;
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] !== '$') { i++; continue; }
+    if (text[i + 1] === '$') {
+      if (mode === 'double') { mode = null; openAt = -1; }
+      else if (mode === null) { mode = 'double'; openAt = i; }
+      i += 2;
+    } else {
+      if (mode === 'single') { mode = null; openAt = -1; }
+      else if (mode === null) { mode = 'single'; openAt = i; }
+      i += 1;
+    }
+  }
+  if (mode === null) return null;
+  return { openAt, latex: text.substring(openAt + (mode === 'double' ? 2 : 1)) };
+}
+
+// Find an unclosed $ or $$ before the cursor in the current textblock.
+// Returns { from, to, latex } where from = position of the delimiter, to = cursor pos, latex = text inside.
 // Returns null if cursor is not inside an open math zone.
 function findOpenMathZone(state) {
   const { doc, selection } = state;
@@ -16,35 +45,11 @@ function findOpenMathZone(state) {
   if (!$pos.parent.isTextblock) return null;
 
   const blockStart = $pos.start();
-  const blockText = doc.textBetween(blockStart, $pos.end(), '\n', '￼');
-  const cursorOffset = pos - blockStart;
-  const textBefore = blockText.substring(0, cursorOffset);
+  const textBefore = doc.textBetween(blockStart, pos, '\n', '￼');
 
-  // Scan backwards for the last unmatched single $.
-  // Skip $$ pairs entirely.
-  let i = textBefore.length - 1;
-  while (i >= 0) {
-    if (textBefore[i] === '$') {
-      // Part of a $$ pair (this $ has a $ immediately before it)
-      if (i > 0 && textBefore[i - 1] === '$') {
-        i -= 2;
-        continue;
-      }
-      // Opening of $$ (this $ has a $ immediately after it)
-      if (i + 1 < textBefore.length && textBefore[i + 1] === '$') {
-        i -= 1;
-        continue;
-      }
-      // Unmatched single $ — we're inside a math zone.
-      return {
-        from: blockStart + i,
-        to: pos,
-        latex: textBefore.substring(i + 1),
-      };
-    }
-    i--;
-  }
-  return null;
+  const zone = scanOpenMathZone(textBefore);
+  if (!zone) return null;
+  return { from: blockStart + zone.openAt, to: pos, latex: zone.latex };
 }
 
 // Find a completed $..$ or $$...$$ around the cursor for node conversion.
