@@ -2,6 +2,8 @@ import { Node } from '@tiptap/core';
 import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import { preprocessMathForDisplay } from './mathPreprocessor';
+import { computeEquationMarker, dismissWarning } from './equationValidation';
+import { onValidationChange } from './validationBus';
 
 export const KatexExtension = Node.create({
   name: 'katex',
@@ -46,33 +48,39 @@ export const KatexExtension = Node.create({
         try {
           const html = katex.renderToString(
             preprocessMathForDisplay(attrs.latex),
-            { throwOnError: false, displayMode: attrs.display }
+            { throwOnError: false, strict: false, displayMode: attrs.display }
           );
           dom.innerHTML = html;
         } catch (e) {
           dom.innerHTML = `<span style="color:red;">${attrs.latex}</span>`;
         }
-        // Check if there's a red error span (KaTeX error)
-        const errorSpan = dom.querySelector('.katex-error');
-        if (errorSpan) {
-          // Remove any previous error icon
-          const existingIcon = dom.querySelector('.katex-error-icon');
-          if (!existingIcon) {
-            const icon = document.createElement('span');
-            icon.className = 'katex-error-icon';
-            icon.innerHTML = '⚠️';
-            icon.title = errorSpan.textContent || 'Unknown command';
-            icon.style.cssText = 'cursor:help; margin-left:4px; font-size:0.9em;';
-            dom.appendChild(icon);
+
+        const existingIcon = dom.querySelector('.katex-error-icon');
+        if (existingIcon) existingIcon.remove();
+        dom.classList.remove('katex-has-error', 'katex-has-warning');
+
+        const marker = computeEquationMarker(attrs.latex);
+        if (marker) {
+          dom.classList.add(marker.severity === 'warning' ? 'katex-has-warning' : 'katex-has-error');
+          const icon = document.createElement('span');
+          icon.className = `katex-error-icon katex-error-icon--${marker.severity}`;
+          icon.textContent = marker.severity === 'warning' ? '!' : '⚠';
+          icon.title = marker.dismissKey
+            ? `${marker.message}\n(click to dismiss)`
+            : marker.message;
+          if (marker.dismissKey) {
+            icon.addEventListener('click', (e) => {
+              e.stopPropagation();
+              dismissWarning(marker.dismissKey);
+              render(attrs);
+            });
           }
-        } else {
-          // Remove error icon if present
-          const icon = dom.querySelector('.katex-error-icon');
-          if (icon) icon.remove();
+          dom.appendChild(icon);
         }
       };
 
       render(node.attrs);
+      const unsubscribeValidation = onValidationChange(() => render(node.attrs));
 
       dom.addEventListener('click', (e) => {
         const pos = getPos?.();
@@ -95,6 +103,9 @@ export const KatexExtension = Node.create({
           void dom.offsetHeight;
           dom.style.animation = '';
           return true;
+        },
+        destroy: () => {
+          unsubscribeValidation();
         },
       };
     };

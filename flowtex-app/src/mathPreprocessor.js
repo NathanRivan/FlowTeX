@@ -1,3 +1,5 @@
+import { CITE_COMMANDS, REF_COMMANDS } from './citeRefScan';
+
 // Replaces cross‑reference commands with human‑readable tags for display
 export function preprocessMathForDisplay(latex) {
   if (!latex) return '';
@@ -13,14 +15,17 @@ export function preprocessMathForDisplay(latex) {
 
 
 
+  const refRe = new RegExp(`\\\\(?:${REF_COMMANDS.join('|')})\\{([^}]+)\\}`, 'g');
+  const citeRe = new RegExp(`\\\\(?:${CITE_COMMANDS.join('|')})\\{([^}]+)\\}`, 'g');
+
   return expanded
     .replace(/\\label\{([^}]+)\}/g, (_, label) =>
       `\\text{\\small\\color{gray}(label: ${label})}`
     )
-    .replace(/\\ref\{([^}]+)\}/g, (_, ref) =>
+    .replace(refRe, (_, ref) =>
       `\\text{\\small\\color{gray}(ref: ${ref})}`
     )
-    .replace(/\\cite\{([^}]+)\}/g, (_, cite) =>
+    .replace(citeRe, (_, cite) =>
       `\\text{\\small\\color{gray}(cite: ${cite})}`
     );
 }

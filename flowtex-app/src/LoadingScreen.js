@@ -1,6 +1,6 @@
 import React from 'react';
 
-const LoadingScreen = () => {
+const LoadingScreen = ({ message = 'Preparing your editor…' }) => {
   return (
     <div style={{
       position: 'fixed',
@@ -44,7 +44,7 @@ const LoadingScreen = () => {
         fontSize: '14px',
         color: '#666',
       }}>
-        Preparing your editor…
+        {message}
       </p>
 
       {/* Inject the keyframe animation */}

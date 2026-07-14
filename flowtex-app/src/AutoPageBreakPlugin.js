@@ -6,6 +6,19 @@ const getColumns   = () => window.flumenwritePageSettings?.columns ?? 1;
 
 export const paginationKey = new PluginKey('pagination');
 
+// Push (overflow) and pull (compaction) are opposite operations on the same
+// page boundary — without a guard, pushing a block down can free up just
+// enough room for compaction to immediately pull the SAME block back,
+// which re-overflows the page, which pushes it again, forever (visible as
+// the page stuttering while the keystroke that caused it never lands).
+// This checks whether a proposed move would exactly reverse the last one.
+export function isReversalOfLastMove(lastMove, direction, pageLow, pageHigh, node) {
+  if (!lastMove) return false;
+  if (lastMove.direction === direction) return false;
+  if (lastMove.pageLow !== pageLow || lastMove.pageHigh !== pageHigh) return false;
+  return lastMove.node.eq(node);
+}
+
 // In single-column mode a page overflows when its content is taller than the
 // page.  In two-column (column-fill: auto) mode the content height is locked,
 // so instead the browser spills into a 3rd column when both columns are full —
@@ -45,8 +58,20 @@ function freeSpaceTwoCol(contentEl) {
   return inRightCol ? freeBelow : freeBelow + columnHeight;
 }
 
-export const autoPageBreakPlugin = () => {
-  let rafId = null;
+// Every keystroke is its own transaction, so scheduling repagination on raw
+// requestAnimationFrame means it fires between individual keystrokes, not
+// after typing settles. Moving/recreating a block's DOM node while a native
+// keystroke is still in flight for that same block corrupts or drops input
+// (a pressed Enter can appear to do nothing). Debouncing until typing has
+// actually paused gives the browser's input pipeline a clear moment to land
+// before we touch the DOM.
+const REPAGINATE_DEBOUNCE_MS = 200;
+
+// onSettled fires whenever a repaginate() pass finds nothing left to fix —
+// e.g. so a bulk import/load can hide a "processing" overlay once pagination
+// has actually converged, instead of guessing a fixed delay.
+export const autoPageBreakPlugin = ({ onSettled } = {}) => {
+  let timerId = null;
 
   function buildPageMap(doc, pageEls) {
     const pages = [];
@@ -63,7 +88,7 @@ export const autoPageBreakPlugin = () => {
   function repaginate(view) {
     const { state, dispatch } = view;
     const { doc, schema } = state;
-    const { skipEmptyCleanup } = paginationKey.getState(state);
+    const { skipEmptyCleanup, lastAutoMove } = paginationKey.getState(state);
 
     if (!schema.nodes.page || view.composing) return;
 
@@ -104,6 +129,7 @@ export const autoPageBreakPlugin = () => {
       tr = tr.insert(newPageInsertAt, newPage);
 
       tr.setMeta('addToHistory', false);
+      tr.setMeta('paginationInternal', true);
       try {
         const { from, to } = state.selection;
         tr = tr.setSelection(
@@ -123,33 +149,40 @@ export const autoPageBreakPlugin = () => {
     );
 
     if (overflow) {
-      const { node: pageNode, pos: pagePos } = overflow;
+      const { node: pageNode, pos: pagePos, index: pageIdx } = overflow;
       const lastBlock       = pageNode.lastChild;
       const lastBlockOffset = pageNode.content.size - lastBlock.nodeSize;
       const lastBlockFrom   = pagePos + 1 + lastBlockOffset;
       const lastBlockTo     = lastBlockFrom + lastBlock.nodeSize;
       const nextPage        = pages.find(p => p.index === overflow.index + 1);
+      const pageLow  = pageIdx;
+      const pageHigh = pageIdx + 1;
 
-      let tr = state.tr;
-      if (nextPage) {
-        tr = tr.delete(lastBlockFrom, lastBlockTo);
-        const insertAt = nextPage.pos - lastBlock.nodeSize + 1;
-        tr = tr.insert(insertAt, lastBlock);
-      } else {
-        tr = tr.delete(lastBlockFrom, lastBlockTo);
-        const newPage = schema.nodes.page.create({}, [lastBlock.copy(lastBlock.content)]);
-        tr = tr.insert(pagePos + pageNode.nodeSize - lastBlock.nodeSize, newPage);
+      if (!isReversalOfLastMove(lastAutoMove, 'push', pageLow, pageHigh, lastBlock)) {
+        let tr = state.tr;
+        if (nextPage) {
+          tr = tr.delete(lastBlockFrom, lastBlockTo);
+          const insertAt = nextPage.pos - lastBlock.nodeSize + 1;
+          tr = tr.insert(insertAt, lastBlock);
+        } else {
+          tr = tr.delete(lastBlockFrom, lastBlockTo);
+          const newPage = schema.nodes.page.create({}, [lastBlock.copy(lastBlock.content)]);
+          tr = tr.insert(pagePos + pageNode.nodeSize - lastBlock.nodeSize, newPage);
+        }
+
+        tr.setMeta('addToHistory', false);
+        tr.setMeta('paginationInternal', true);
+        tr.setMeta('paginationMove', { direction: 'push', pageLow, pageHigh, node: lastBlock });
+        try {
+          const { from, to } = state.selection;
+          tr = tr.setSelection(
+            state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
+          );
+        } catch {}
+        tr.scrollIntoView();
+        dispatch(tr);
+        if (view.hasFocus()) view.focus();
       }
-
-      tr.setMeta('addToHistory', false);
-      try {
-        const { from, to } = state.selection;
-        tr = tr.setSelection(
-          state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
-        );
-      } catch {}
-      tr.scrollIntoView();
-      dispatch(tr);
       return;
     }
 
@@ -171,6 +204,7 @@ export const autoPageBreakPlugin = () => {
           if (!cursorInPage) {
             const tr = state.tr.delete(pos, pageEnd);
             tr.setMeta('addToHistory', false);
+            tr.setMeta('paginationInternal', true);
             try {
               const { from, to } = state.selection;
               tr.setSelection(
@@ -187,9 +221,10 @@ export const autoPageBreakPlugin = () => {
     }
 
     // --- 4. Compaction: pull first block from next page if it fits in the current page.
-    //        Add ~24 px to the block's height to account for inter-paragraph margins so
-    //        we don't oscillate between compact and overflow.  The hysteresis (extra
-    //        30 px required in two-column mode) prevents push/pull oscillation. ---
+    //        Add ~24 px to the block's height to account for inter-paragraph margins.
+    //        isReversalOfLastMove (above) is what actually prevents push/pull from
+    //        immediately undoing each other; this margin just avoids borderline
+    //        thrashing between two DIFFERENT blocks that happen to be similar sizes. ---
     const underfull = pages.find((p, i) => {
       if (!p.contentEl) return false;
       const next = pages[i + 1];
@@ -213,26 +248,37 @@ export const autoPageBreakPlugin = () => {
     if (underfull) {
       const nextPage      = pages[underfull.index + 1];
       const firstBlock    = nextPage.node.firstChild;
-      const firstBlockFrom = nextPage.pos + 1;
-      const firstBlockTo   = firstBlockFrom + firstBlock.nodeSize;
-      // Insert before the current page's closing token (= end of its content).
-      const insertAt = underfull.pos + underfull.node.nodeSize - 1;
+      const pageLow  = underfull.index;
+      const pageHigh = underfull.index + 1;
 
-      let tr = state.tr;
-      // Delete from the next page first (higher position → doesn't shift insertAt).
-      tr = tr.delete(firstBlockFrom, firstBlockTo);
-      tr = tr.insert(insertAt, firstBlock);
+      if (!isReversalOfLastMove(lastAutoMove, 'pull', pageLow, pageHigh, firstBlock)) {
+        const firstBlockFrom = nextPage.pos + 1;
+        const firstBlockTo   = firstBlockFrom + firstBlock.nodeSize;
+        // Insert before the current page's closing token (= end of its content).
+        const insertAt = underfull.pos + underfull.node.nodeSize - 1;
 
-      tr.setMeta('addToHistory', false);
-      try {
-        const { from, to } = state.selection;
-        tr = tr.setSelection(
-          state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
-        );
-      } catch {}
-      tr.scrollIntoView();
-      dispatch(tr);
+        let tr = state.tr;
+        // Delete from the next page first (higher position → doesn't shift insertAt).
+        tr = tr.delete(firstBlockFrom, firstBlockTo);
+        tr = tr.insert(insertAt, firstBlock);
+
+        tr.setMeta('addToHistory', false);
+        tr.setMeta('paginationInternal', true);
+        tr.setMeta('paginationMove', { direction: 'pull', pageLow, pageHigh, node: firstBlock });
+        try {
+          const { from, to } = state.selection;
+          tr = tr.setSelection(
+            state.selection.constructor.create(tr.doc, tr.mapping.map(from), tr.mapping.map(to))
+          );
+        } catch {}
+        tr.scrollIntoView();
+        dispatch(tr);
+        return;
+      }
     }
+
+    // Reached the end without dispatching any fix — pagination has converged.
+    onSettled?.();
   }
 
   return new Plugin({
@@ -241,23 +287,38 @@ export const autoPageBreakPlugin = () => {
     // This lets Editor.js trigger repagination after CSS vars are applied,
     // without needing a doc change to satisfy the update() guard.
     state: {
-      init: () => ({ force: false, skipEmptyCleanup: false }),
+      init: () => ({ force: false, skipEmptyCleanup: false, lastAutoMove: null, wasInternal: false }),
       apply: (tr) => ({
         force: !!tr.getMeta('forceRepaginate'),
         skipEmptyCleanup: !!tr.getMeta('skipEmptyCleanup'),
+        // Any transaction other than one of our own tagged push/pull moves
+        // clears the guard — it only needs to survive from one auto-move to
+        // the very next repaginate cycle, not indefinitely.
+        lastAutoMove: tr.getMeta('paginationMove') || null,
+        wasInternal: !!tr.getMeta('paginationInternal'),
       }),
     },
     view() {
       return {
         update(v, prev) {
-          const { force } = paginationKey.getState(v.state);
+          const { force, wasInternal } = paginationKey.getState(v.state);
           if (v.state.doc === prev.doc && !force) return;
-          cancelAnimationFrame(rafId);
-          // RAF ensures DOM is laid out before we measure scrollHeight.
-          rafId = requestAnimationFrame(() => repaginate(v));
+          clearTimeout(timerId);
+          // The debounce exists to keep DOM surgery off an in-flight native
+          // keystroke — that risk only exists for the FIRST reaction to a
+          // genuine external edit. Once we're mid-cascade (this update was
+          // caused by our own previous auto-move, not a fresh edit), there's
+          // no keystroke left to protect, so run at full speed instead of
+          // throttling every step of a large repagination to one per 200ms
+          // (that's what made importing a big paper look like it was being
+          // paginated by hand, one page at a time, in front of the user).
+          const delay = (force || wasInternal) ? 0 : REPAGINATE_DEBOUNCE_MS;
+          // requestAnimationFrame (nested for the force/0-delay path too)
+          // ensures DOM is laid out before we measure scrollHeight.
+          timerId = setTimeout(() => requestAnimationFrame(() => repaginate(v)), delay);
         },
         destroy() {
-          cancelAnimationFrame(rafId);
+          clearTimeout(timerId);
         },
       };
     },

@@ -1,11 +1,18 @@
 // src/latexSerializer.js
 
 function escapeLaTeX(text) {
-  return text
-    .replace(/\\/g, '\\textbackslash{}')
-    .replace(/[&%$#_{}]/g, '\\$&')
-    .replace(/~/g, '\\textasciitilde{}')
-    .replace(/\^/g, '\\textasciicircum{}');
+  // Single pass: escaping backslashes first (as a separate .replace) would
+  // inject literal `{}` characters that a later `{}`-escaping pass would
+  // then re-escape, corrupting the output (e.g. "a\b" -> "a\textbackslash{}b"
+  // -> "a\textbackslash\{\}b").
+  return text.replace(/[\\&%$#_{}~^]/g, ch => {
+    switch (ch) {
+      case '\\': return '\\textbackslash{}';
+      case '~': return '\\textasciitilde{}';
+      case '^': return '\\textasciicircum{}';
+      default: return '\\' + ch;
+    }
+  });
 }
 
 function fontsizeToCommand(size) {
@@ -53,9 +60,16 @@ function renderInline(node) {
         case 'strike':
           text = `\\st{${text}}`;
           break;
-        case 'highlight':
-          text = `\\hl{${text}}`;
+        case 'highlight': {
+          const color = mark.attrs?.color;
+          if (color && /^#?[0-9a-fA-F]{6}$/.test(color)) {
+            const hex = color.replace('#', '').toUpperCase();
+            text = `\\colorbox[HTML]{${hex}}{${text}}`;
+          } else {
+            text = `\\hl{${text}}`;
+          }
           break;
+        }
         case 'code':
           text = `\\texttt{${text}}`;
           break;
@@ -114,10 +128,12 @@ function renderNode(node) {
       const children = (node.content || []).map(renderInline).join('');
       let output = children;
       if (alignment && alignment !== 'left') {
+        // 'justify' needs no wrapping: LaTeX paragraphs are justified by
+        // default, and `justify` isn't a built-in environment (it needs the
+        // ragged2e package, which isn't in the exported preamble).
         const env =
           alignment === 'center' ? 'center' :
-          alignment === 'right' ? 'flushright' :
-          alignment === 'justify' ? 'justify' : null;
+          alignment === 'right' ? 'flushright' : null;
         if (env) output = `\\begin{${env}}\n${output}\n\\end{${env}}`;
       }
       return output;
@@ -141,10 +157,18 @@ function renderNode(node) {
     }
 
     case 'blockquote':
-      return `\\begin{quote}\n${(node.content || []).map(renderNode).join('\n')}\n\\end{quote}`;
+      // Blank line, not a single \n, so multiple paragraphs inside the quote
+      // don't get merged into one LaTeX paragraph.
+      return `\\begin{quote}\n${(node.content || []).map(renderNode).join('\n\n')}\n\\end{quote}`;
 
     case 'katexDisplay':
       return `\\[${node.attrs?.latex || ''}\\]`;
+
+    case 'latexTable':
+      // The node's `raw` attribute is already valid, complete LaTeX source
+      // (kept in sync by TableEditModal on every edit) — just re-emit it,
+      // same as katex/katexDisplay do for their `latex` attribute.
+      return node.attrs?.raw || '';
 
     case 'codeBlock': {
       const code = (node.content || []).map(n => n.text || '').join('');
@@ -153,26 +177,6 @@ function renderNode(node) {
 
     case 'horizontalRule':
       return '\\noindent\\rule{\\linewidth}{0.4pt}';
-
-    case 'table': {
-      const rows = node.content || [];
-      const colCount = rows[0]?.content?.length || 1;
-      const colSpec = '|' + Array(colCount).fill('l').join('|') + '|';
-      const body = rows.map((row, ri) => {
-        const cells = (row.content || []).map(cell => {
-          const text = (cell.content || []).map(renderNode).join('').trim();
-          return text;
-        }).join(' & ');
-        const isHeader = ri === 0 && row.content?.some(c => c.type === 'tableHeader');
-        return cells + ' \\\\' + (isHeader ? '\n\\hline' : '');
-      }).join('\n');
-      return `\\begin{tabular}{${colSpec}}\n\\hline\n${body}\n\\hline\n\\end{tabular}`;
-    }
-
-    case 'tableRow':
-    case 'tableCell':
-    case 'tableHeader':
-      return (node.content || []).map(renderNode).join('');
 
     // Add more block types as needed (code_block, etc.)
     default:
@@ -224,6 +228,10 @@ export function buildFullLaTeX(editor, pageSettings) {
 \\usepackage{xcolor}
 \\usepackage{setspace}
 \\usepackage{booktabs}
+\\usepackage{multirow}
+\\usepackage{array}
+\\usepackage{tabularx}
+\\usepackage{siunitx}
 \\usepackage{hyperref}
 \\setlength{\\parindent}{0pt}
 \\setlength{\\parskip}{6pt}

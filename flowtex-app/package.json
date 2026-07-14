@@ -9,6 +9,7 @@
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^13.5.0",
     "@tiptap/core": "^3.27.1",
+    "@tiptap/extension-collaboration": "^3.27.1",
     "@tiptap/extension-color": "^3.27.1",
     "@tiptap/extension-font-family": "^3.27.1",
     "@tiptap/extension-highlight": "^3.27.1",
@@ -20,6 +21,7 @@
     "@tiptap/react": "^3.27.1",
     "@tiptap/starter-kit": "^3.27.1",
     "@tiptap/suggestion": "^3.27.1",
+    "diff": "^9.0.0",
     "framer-motion": "^12.42.2",
     "katex": "^0.16.40",
     "lucide-react": "^1.18.0",
@@ -30,7 +32,8 @@
     "tippy.js": "^6.3.7",
     "tiptap-extension-font-size": "^1.2.0",
     "web-computer-modern": "^1.1.0-new-cm-7-0-2",
-    "web-vitals": "^2.1.4"
+    "web-vitals": "^2.1.4",
+    "yjs": "^13.6.31"
   },
   "scripts": {
     "start": "react-scripts start",
@@ -43,6 +46,17 @@
       "react-app",
       "react-app/jest"
     ]
+  },
+  "jest": {
+    "moduleNameMapper": {
+      "^@tiptap/pm/(.*)$": "<rootDir>/node_modules/@tiptap/pm/dist/$1/index.cjs",
+      "^@tiptap/y-tiptap$": "<rootDir>/node_modules/@tiptap/y-tiptap/dist/y-tiptap.cjs",
+      "^@tiptap/core/(jsx-runtime|jsx-dev-runtime)$": "<rootDir>/node_modules/@tiptap/core/$1/index.cjs",
+      "^@tiptap/([^/]+)$": "<rootDir>/node_modules/@tiptap/$1/dist/index.cjs",
+      "^yjs$": "<rootDir>/node_modules/yjs/dist/yjs.cjs",
+      "^lib0/(?:.*/)?([^/.]+)(?:\\.js)?$": "<rootDir>/node_modules/lib0/dist/$1.cjs",
+      "^y-protocols/([^.]+)(?:\\.js)?$": "<rootDir>/node_modules/y-protocols/dist/$1.cjs"
+    }
   },
   "browserslist": {
     "production": [

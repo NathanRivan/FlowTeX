@@ -125,9 +125,9 @@ const products = [
   },
   {
     id: 'soon-1',
-    name: 'FlumenGraphs',
+    name: 'Coming Soon',
     icon: 'Φ',
-    desc: 'AI Native graphic and illustration editor. Made for those who appreciate visual beauty. Coming Soon.',
+    desc: 'AI Native graphic and illustration editor. Made for those who appreciate visual beauty.',
     available: false,
   },
   {

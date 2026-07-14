@@ -1,0 +1,41 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  flowtex-app:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: flowtex-app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: flowtex-app/package-lock.json
+      - run: npm ci
+      - run: npm run build
+      - run: npm test -- --watchAll=false
+        env:
+          CI: true
+
+  pdf-server:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pdf-server
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: pdf-server/package-lock.json
+      - run: npm ci
+      - run: node -c server.js

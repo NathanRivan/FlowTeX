@@ -1,5 +1,8 @@
 import { Node } from '@tiptap/core';
 import katex from 'katex';
+import { preprocessMathForDisplay } from './mathPreprocessor';
+import { computeEquationMarker, dismissWarning } from './equationValidation';
+import { onValidationChange } from './validationBus';
 
 export const KatexDisplayExtension = Node.create({
   name: 'katexDisplay',
@@ -42,16 +45,41 @@ export const KatexDisplayExtension = Node.create({
 
       const render = (attrs) => {
         try {
-          dom.innerHTML = katex.renderToString(attrs.latex, {
+          dom.innerHTML = katex.renderToString(preprocessMathForDisplay(attrs.latex), {
             throwOnError: false,
+            strict: false,
             displayMode: true,
           });
         } catch (e) {
           dom.innerHTML = `<span style="color:red;">${attrs.latex}</span>`;
         }
+
+        const existingIcon = dom.querySelector('.katex-error-icon');
+        if (existingIcon) existingIcon.remove();
+        dom.classList.remove('katex-has-error', 'katex-has-warning');
+
+        const marker = computeEquationMarker(attrs.latex);
+        if (marker) {
+          dom.classList.add(marker.severity === 'warning' ? 'katex-has-warning' : 'katex-has-error');
+          const icon = document.createElement('span');
+          icon.className = `katex-error-icon katex-error-icon--${marker.severity}`;
+          icon.textContent = marker.severity === 'warning' ? '!' : '⚠';
+          icon.title = marker.dismissKey
+            ? `${marker.message}\n(click to dismiss)`
+            : marker.message;
+          if (marker.dismissKey) {
+            icon.addEventListener('click', (e) => {
+              e.stopPropagation();
+              dismissWarning(marker.dismissKey);
+              render(attrs);
+            });
+          }
+          dom.appendChild(icon);
+        }
       };
 
       render(node.attrs);
+      const unsubscribeValidation = onValidationChange(() => render(node.attrs));
 
       dom.addEventListener('click', (e) => {
         if (typeof getPos === 'function' && window.flumenwriteMathEdit) {
@@ -72,6 +100,9 @@ export const KatexDisplayExtension = Node.create({
           void dom.offsetHeight;
           dom.style.animation = '';
           return true;
+        },
+        destroy: () => {
+          unsubscribeValidation();
         },
       };
     };

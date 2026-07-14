@@ -1,6 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { useEditor, EditorContent } from '@tiptap/react';
+import * as Y from 'yjs';
+import { Collaboration } from '@tiptap/extension-collaboration';
+import { SupabaseYjsProvider } from './SupabaseYjsProvider';
 import StarterKit from '@tiptap/starter-kit';
 import { TextAlign } from '@tiptap/extension-text-align';
 import { TextStyle } from '@tiptap/extension-text-style';
@@ -19,17 +22,25 @@ import { PageBreak } from './PageBreak';
 import FontSizeControl from './FontSizeControl';
 import SoundEngine from './SoundEngine';
 import { importLaTeX } from './latexImporter';
+import ImportLatexModal from './ImportLatexModal';
 import { parseMacros } from './macroExpander';
 import PreambleModal from './PreambleModal';
+import BibliographyModal from './BibliographyModal';
+import { CiteRefValidationPlugin } from './CiteRefValidationPlugin';
+import ShareModal from './ShareModal';
 import PageSettingsModal, { DEFAULT_PAGE_SETTINGS, PAGE_SIZES } from './PageSettingsModal';
 import { CommentMark } from './CommentMark';
 import CommentSidebar from './CommentSidebar';
+import OutlineSidebar from './OutlineSidebar';
+import VersionHistorySidebar from './VersionHistorySidebar';
+import VersionDiffView from './VersionDiffView';
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
   FileText, Upload, Printer, Wrench, MessageSquare,
   Highlighter, ScissorsIcon, LayoutTemplate, Columns2,
   LayoutGrid, ChevronDown, Minus, Table as TableIcon, FileDown,
+  History, List, Users, Folder, BookOpen,
 } from 'lucide-react';
 import TemplatesMenu from './TemplatesMenu';
 import { TEMPLATES } from './templates';
@@ -40,32 +51,42 @@ import { PagedDocument } from './PagedDocument';
 import { PageNode } from './PageNode';
 import { AutoPageBreak } from './AutoPageBreakExtension';
 import { ColumnSpan } from './ColumnSpanExtension';
-import { Table } from '@tiptap/extension-table';
-import { TableRow } from '@tiptap/extension-table';
-import { TableHeader } from '@tiptap/extension-table';
-import { TableCell } from '@tiptap/extension-table';
+import { LatexTableExtension } from './LatexTableExtension';
+import TableEditModal from './TableEditModal';
+import { defaultTableRaw } from './tableSerializer';
 
 // Initial document: a single page with one empty paragraph
 const INITIAL_DOC = {
   type: 'doc',
-  content: [{ type: 'page', content: [{ type: 'paragraph' }] }],
+  content: [{
+    type: 'page',
+    content: [{
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'Welcome to the editor! Type math inline with $....$, or start a new line with $$ for a display equation.' }],
+    }],
+  }],
 };
 
-const Editor = ({ session, document: docProp, onBack }) => {
+const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   // ---- STATE ----
   const [, setUpdate] = useState(0);
   const [showSource, setShowSource] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [latexCode, setLatexCode] = useState('');
   const [highlightColor, setHighlightColor] = useState('#ffff00');
   const [isEditorReady, setIsEditorReady] = useState(false);
   const [minTimeReached, setMinTimeReached] = useState(false);
   const [showLoading, setShowLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
+  const [paginatingImport, setPaginatingImport] = useState(false);
   const [contextMenu, setContextMenu] = useState({
     show: false, x: 0, y: 0, hasSelection: false,
   });
   const [mathModal, setMathModal] = useState({
     open: false, latex: '', nodePos: null,
+  });
+  const [tableModal, setTableModal] = useState({
+    open: false, raw: '', getPos: null,
   });
   const [mathZone, setMathZone] = useState({                                            
     active: false, latex: '', coords: null, suggestions: [], selectedIdx: 0,
@@ -154,7 +175,18 @@ const Editor = ({ session, document: docProp, onBack }) => {
   }));
   const [docTitle, setDocTitle] = useState(docProp?.title || 'Untitled Document');
   const docIdRef = useRef(docProp?.id || null);
+  const ydocRef = useRef(null);
+  if (!ydocRef.current) ydocRef.current = new Y.Doc();
   const saveTimerRef = useRef(null);
+  // Snapshot the doc's pre-session state into document_versions once, the
+  // first time it's edited this session — one version per editing session,
+  // no timers/config needed.
+  const versionSnapshotDoneRef = useRef(false);
+  const initialContentRef = useRef(docProp?.content || null);
+  const initialTitleRef = useRef(docProp?.title || 'Untitled Document');
+  const [showVersions, setShowVersions] = useState(false);
+  const [versions, setVersions] = useState([]);
+  const [diffVersion, setDiffVersion] = useState(null);
   const pageSettingsRef = useRef(pageSettings);
   const commentThreadsRef = useRef([]);
   const mathZoneActiveRef = useRef(false);
@@ -168,9 +200,20 @@ const Editor = ({ session, document: docProp, onBack }) => {
   const [pdfStatus, setPdfStatus] = useState('');
   const [preamble, setPreamble] = useState(false);
   const [showPreamble, setShowPreamble] = useState(false);
+  const [bibliography, setBibliography] = useState('');
+  const [showBibliography, setShowBibliography] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const isOwner = docProp?.user_id === session?.user?.id;
+  const [showFolderMenu, setShowFolderMenu] = useState(false);
+  const [currentFolderId, setCurrentFolderId] = useState(docProp?.folder_id ?? null);
+  const [folders, setFolders] = useState([]);
+  const [browseFolderId, setBrowseFolderId] = useState(null);
+  const [browseDocs, setBrowseDocs] = useState([]);
+  const folderButtonRef = useRef(null);
   const [commentThreads, setCommentThreads] = useState(docProp?.content?.commentThreads || []);
   const [activeCommentId, setActiveCommentId] = useState(null);
   const [showComments, setShowComments] = useState(false);
+  const [showOutline, setShowOutline] = useState(false);
   const addCommentThread = (threadId, quote) => {
     setCommentThreads(prev => [...prev, {
       id: threadId, quote, text: '', replies: [],
@@ -204,7 +247,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
       // PagedDocument replaces StarterKit's doc node: doc > page+ instead of doc > block+
       PagedDocument,
       PageNode,
-      AutoPageBreak,
+      AutoPageBreak.configure({ onSettled: () => setPaginatingImport(false) }),
       Highlight.configure({ multicolor: true }),
       TextAlign.configure({
         types: ['heading', 'paragraph'],
@@ -221,13 +264,11 @@ const Editor = ({ session, document: docProp, onBack }) => {
       CommentMark,
       Indent,
       ColumnSpan,
-      Table.configure({ resizable: false }),
-      TableRow,
-      TableHeader,
-      TableCell,
-      StarterKit.configure({ document: false }), // our PagedDocument handles the doc node
+      LatexTableExtension,
+      CiteRefValidationPlugin,
+      StarterKit.configure({ document: false, undoRedo: false }), // our PagedDocument handles the doc node; Yjs owns undo/redo
+      Collaboration.configure({ document: ydocRef.current }),
     ],
-    content: docProp?.content || INITIAL_DOC,
     editorProps: {
       handleKeyDown: (view, event) => {
         const mod = event.metaKey || event.ctrlKey;
@@ -305,6 +346,24 @@ const Editor = ({ session, document: docProp, onBack }) => {
 
   // ---- EFFECTS ----
 
+  // Walk the doc for heading nodes each render — cheap for typical doc sizes
+  // and always in sync, no separate state/effect to keep updated.
+  const outlineHeadings = [];
+  if (editor) {
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'heading') {
+        outlineHeadings.push({ pos, level: node.attrs.level, text: node.textContent });
+      }
+    });
+  }
+
+  const goToHeading = (pos) => {
+    if (!editor) return;
+    editor.chain().focus().setTextSelection(pos + 1).run();
+    const dom = editor.view.nodeDOM(pos);
+    if (dom instanceof HTMLElement) dom.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   useEffect(() => {
     if (!editor) return;
     const handler = () => setUpdate(prev => prev + 1);
@@ -323,6 +382,13 @@ const Editor = ({ session, document: docProp, onBack }) => {
   useEffect(() => {
     window.flumenwriteMacros = parseMacros(preamble);
   }, [preamble]);
+
+  // Re-run cite/label validation immediately whenever the .bib source
+  // changes, not just when a citation itself is edited (task requirement).
+  useEffect(() => {
+    window.flumenwriteBibliography = bibliography;
+    window.flumenwriteRevalidateCiteRefs?.();
+  }, [bibliography]);
 
   useEffect(() => {
     const { pageSize, marginTop, marginBottom, marginLeft, marginRight, fontSize, lineSpacing, columns } = pageSettings;
@@ -418,10 +484,46 @@ const Editor = ({ session, document: docProp, onBack }) => {
     return () => { delete window.flumenwriteMathEdit; };
   }, [editor]);
 
+  useEffect(() => {
+    if (!editor) return;
+    window.flumenwriteTableEdit = (getPosFn, raw) => {
+      setShowComments(false);
+      setTableModal({ open: true, raw, getPos: getPosFn });
+    };
+    return () => { delete window.flumenwriteTableEdit; };
+  }, [editor]);
 
   useEffect(() => {
-    if (editor && !isEditorReady) setIsEditorReady(true);
-  }, [editor, isEditorReady]);
+    if (!editor) return;
+    window.flumenwriteTableEdit = (getPosFn, raw) => {
+      setShowComments(false);
+      setTableModal({ open: true, raw, getPos: getPosFn });
+    };
+    return () => { delete window.flumenwriteTableEdit; };
+  }, [editor]);
+
+
+  // Load persisted Yjs state (if any), connect the realtime broadcast
+  // channel, then seed the shared doc from the legacy JSON content only if
+  // nobody (a snapshot or a peer who connected first) has written to it yet.
+  const collabReadyRef = useRef(false);
+  const seededRef = useRef(false);
+  useEffect(() => {
+    if (!editor || collabReadyRef.current) return;
+    collabReadyRef.current = true;
+    const provider = new SupabaseYjsProvider(supabase, docIdRef.current, ydocRef.current);
+    (async () => {
+      await provider.load();
+      provider.connect();
+      const isEmpty = ydocRef.current.getXmlFragment('default').length === 0;
+      if (isEmpty && !seededRef.current) {
+        seededRef.current = true;
+        editor.commands.setContent(docProp?.content || INITIAL_DOC);
+      }
+      setIsEditorReady(true);
+    })();
+    return () => provider.destroy();
+  }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- SOUND ENGINE ----
   // Lazy-init AudioContext on first gesture, then wire all sound hooks.
@@ -530,6 +632,17 @@ const Editor = ({ session, document: docProp, onBack }) => {
     const handler = () => {
       if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
       saveTimerRef.current = setTimeout(async () => {
+        if (!versionSnapshotDoneRef.current) {
+          versionSnapshotDoneRef.current = true;
+          if (initialContentRef.current) {
+            await supabase.from('document_versions').insert({
+              document_id: docIdRef.current,
+              user_id: session.user.id,
+              title: initialTitleRef.current,
+              content: initialContentRef.current,
+            });
+          }
+        }
         await supabase
           .from('documents')
           .update({
@@ -552,6 +665,102 @@ const Editor = ({ session, document: docProp, onBack }) => {
     setDocTitle(title);
     if (!session || !docIdRef.current) return;
     await supabase.from('documents').update({ title }).eq('id', docIdRef.current);
+  };
+
+  // ---- VERSION HISTORY ----
+  useEffect(() => {
+    if (!showVersions || !docIdRef.current) return;
+    supabase
+      .from('document_versions')
+      .select('*')
+      .eq('document_id', docIdRef.current)
+      .order('created_at', { ascending: false })
+      .then(({ data }) => setVersions(data || []));
+  }, [showVersions]);
+
+  // ---- FOLDER BROWSER (also used to switch to a different document) ----
+  useEffect(() => {
+    if (!showFolderMenu || !isOwner) return;
+    setBrowseFolderId(currentFolderId);
+    Promise.all([
+      supabase.from('folders').select('*').order('name'),
+      supabase.from('documents').select('id, title, folder_id').eq('user_id', session.user.id).order('title'),
+    ]).then(([{ data: fld }, { data: docs }]) => {
+      setFolders(fld || []);
+      setBrowseDocs(docs || []);
+    });
+  }, [showFolderMenu, isOwner]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const moveToFolder = async (folderId) => {
+    setCurrentFolderId(folderId);
+    if (!docIdRef.current) return;
+    await supabase.from('documents').update({ folder_id: folderId }).eq('id', docIdRef.current);
+  };
+
+  const switchToDocument = async (docId) => {
+    if (docId === docIdRef.current) { setShowFolderMenu(false); return; }
+    setShowFolderMenu(false);
+    const { data, error } = await supabase.from('documents').select('*').eq('id', docId).single();
+    if (!error && data && onOpenDocument) {
+      onOpenDocument({
+        id: data.id,
+        title: data.title,
+        content: data.content,
+        pageSettings: null,
+        user_id: data.user_id,
+        link_shared: data.link_shared,
+        folder_id: data.folder_id,
+      });
+    }
+  };
+
+  const currentFolderName = currentFolderId
+    ? folders.find(f => f.id === currentFolderId)?.name ?? 'Folder'
+    : '/';
+
+  const folderPathMap = useMemo(() => new Map(folders.map(f => [f.id, f])), [folders]);
+  const browsePath = useMemo(() => {
+    const path = [];
+    let f = browseFolderId ? folderPathMap.get(browseFolderId) : null;
+    while (f) {
+      path.unshift(f);
+      f = f.parent_id ? folderPathMap.get(f.parent_id) : null;
+    }
+    return path;
+  }, [browseFolderId, folderPathMap]);
+  const browseSubfolders = useMemo(
+    () => folders.filter(f => f.parent_id === browseFolderId),
+    [folders, browseFolderId]
+  );
+  const browseDocsHere = useMemo(
+    () => browseDocs.filter(d => d.folder_id === browseFolderId),
+    [browseDocs, browseFolderId]
+  );
+  const browseFolderName = browseFolderId
+    ? folderPathMap.get(browseFolderId)?.name ?? 'Folder'
+    : '/';
+
+  const restoreVersion = async (version) => {
+    if (!editor) return;
+    if (!window.confirm(`Restore the version from ${new Date(version.created_at).toLocaleString()}? Your current content will be saved as a version first.`)) return;
+
+    if (session && docIdRef.current) {
+      await supabase.from('document_versions').insert({
+        document_id: docIdRef.current,
+        user_id: session.user.id,
+        title: docTitle,
+        content: { ...editor.getJSON(), pageSettings: pageSettingsRef.current, commentThreads: commentThreadsRef.current },
+      });
+    }
+    // Already snapshotted the pre-restore state above; don't let the
+    // autosave's own first-edit-of-session check snapshot it again.
+    versionSnapshotDoneRef.current = true;
+
+    editor.commands.setContent(version.content);
+    if (version.content?.pageSettings) setPageSettings(version.content.pageSettings);
+    setCommentThreads(version.content?.commentThreads || []);
+    setShowVersions(false);
+    setDiffVersion(null);
   };
 
   // ---- HELPERS ----
@@ -690,10 +899,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
                     </button>
                   </div>
                   <button onClick={handleShowSource} title="Export .tex"><FileText size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => {
-                    const raw = prompt('Paste your .tex content:');
-                    if (raw) editor.commands.setContent(importLaTeX(raw));
-                  }} title="Import .tex"><Upload size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => setShowImport(true)} title="Import .tex"><Upload size={16} /></button>
                   <button
                     onClick={handleExportPDF}
                     title="Export PDF (compiled LaTeX)"
@@ -705,6 +911,7 @@ const Editor = ({ session, document: docProp, onBack }) => {
                   </button>
                   <button onClick={handlePrintPDF} title="Print PDF"><Printer size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPreamble(true)} title="Preamble"><Wrench size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => setShowBibliography(true)} title="Bibliography (.bib)"><BookOpen size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPageSettings(true)} title="Page Settings"><LayoutTemplate size={16} /></button>
                   {pageSettings.columns === 2 && (
                     <button
@@ -771,6 +978,17 @@ const Editor = ({ session, document: docProp, onBack }) => {
               </div>
             )}
 
+            {showImport && (
+              <ImportLatexModal
+                onImport={(raw) => {
+                  setShowImport(false);
+                  setPaginatingImport(true);
+                  editor.commands.setContent(importLaTeX(raw));
+                }}
+                onClose={() => setShowImport(false)}
+              />
+            )}
+
             {mathModal.open && (
               <MathEditModal
                 isDisplay={mathModal.isDisplay}
@@ -792,6 +1010,24 @@ const Editor = ({ session, document: docProp, onBack }) => {
               />
             )}
 
+            {tableModal.open && (
+              <TableEditModal
+                initialRaw={tableModal.raw}
+                onUpdate={(newRaw) => {
+                  if (editor && tableModal.getPos) {
+                    const currentPos = tableModal.getPos();
+                    if (currentPos !== undefined) {
+                      editor.view.dispatch(
+                        editor.state.tr.setNodeMarkup(currentPos, null, { raw: newRaw })
+                      );
+                      SoundEngine.play('math.commit');
+                    }
+                  }
+                }}
+                onClose={() => setTableModal({ open: false, raw: '', getPos: null })}
+              />
+            )}
+
             {showPageSettings && (
               <PageSettingsModal
                 settings={pageSettings}
@@ -807,6 +1043,22 @@ const Editor = ({ session, document: docProp, onBack }) => {
                 initialPreamble={preamble}
                 onSave={(newPreamble) => { setPreamble(newPreamble); setShowPreamble(false); }}
                 onClose={() => setShowPreamble(false)}
+              />
+            )}
+
+            {showBibliography && (
+              <BibliographyModal
+                initialBibliography={bibliography}
+                onSave={(newBibliography) => { setBibliography(newBibliography); setShowBibliography(false); }}
+                onClose={() => setShowBibliography(false)}
+              />
+            )}
+
+            {showShare && (
+              <ShareModal
+                docId={docIdRef.current}
+                initialLinkShared={docProp?.link_shared}
+                onClose={() => setShowShare(false)}
               />
             )}
 
@@ -857,31 +1109,44 @@ padding: '4px', minWidth: '196px',
                 }}>
                   <span>Comment</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Ctrl+Alt+M</span>
                 </div>
-                {editor.isActive('table') && <>
-                  <div style={{ borderTop: '1px solid var(--border)', margin: '3px 0' }} />
-                  {[
-                    ['Add row above',    () => editor.chain().focus().addRowBefore().run()],
-                    ['Add row below',    () => editor.chain().focus().addRowAfter().run()],
-                    ['Delete row',       () => editor.chain().focus().deleteRow().run()],
-                    ['Add column left',  () => editor.chain().focus().addColumnBefore().run()],
-                    ['Add column right', () => editor.chain().focus().addColumnAfter().run()],
-                    ['Delete column',    () => editor.chain().focus().deleteColumn().run()],
-                    ['Delete table',     () => editor.chain().focus().deleteTable().run()],
-                  ].map(([label, action]) => (
-                    <div key={label} className="context-menu-item" onClick={(e) => {
-                      e.stopPropagation();
-                      action();
-                      setContextMenu({ show: false, x: 0, y: 0, hasSelection: false });
-                    }}>
-                      <span>{label}</span>
-                    </div>
-                  ))}
-                </>}
               </div>
             )}
           </div>
 
           <div className="floating-right-actions">
+            {isOwner && (
+              <button
+                className={`floating-action-btn${showShare ? ' active' : ''}`}
+                onClick={() => setShowShare(prev => !prev)}
+                title="Share"
+              >
+                <Users size={16} />
+              </button>
+            )}
+            {isOwner && (
+              <button
+                ref={folderButtonRef}
+                className={`floating-action-btn${showFolderMenu ? ' active' : ''}`}
+                onClick={() => setShowFolderMenu(prev => !prev)}
+                title={`Folder: ${currentFolderName}`}
+              >
+                <Folder size={16} />
+              </button>
+            )}
+            <button
+              className={`floating-action-btn${showOutline ? ' active' : ''}`}
+              onClick={() => setShowOutline(prev => !prev)}
+              title={showOutline ? 'Hide Outline' : 'Show Outline'}
+            >
+              <List size={16} />
+            </button>
+            <button
+              className={`floating-action-btn${showVersions ? ' active' : ''}`}
+              onClick={() => setShowVersions(prev => !prev)}
+              title={showVersions ? 'Hide Version History' : 'Show Version History'}
+            >
+              <History size={16} />
+            </button>
             <button
               className={`floating-action-btn${showComments ? ' active' : ''}`}
               onClick={() => {
@@ -904,6 +1169,67 @@ padding: '4px', minWidth: '196px',
             selectedIdx={mathZone.selectedIdx}
           />
 
+          {showFolderMenu && createPortal(
+            <div className="folder-picker-backdrop" onClick={() => setShowFolderMenu(false)} />,
+            document.body
+          )}
+          {showFolderMenu && folderButtonRef.current && createPortal(
+            (() => {
+              const rect = folderButtonRef.current.getBoundingClientRect();
+              return (
+                <div
+                  className="folder-picker-portal"
+                  style={{ position: 'fixed', top: rect.top, right: window.innerWidth - rect.left + 10 }}
+                  onClick={e => e.stopPropagation()}
+                >
+                  <div className="folder-picker-crumbs">
+                    <button className="folder-picker-crumb" onClick={() => setBrowseFolderId(null)}>/</button>
+                    {browsePath.map(f => (
+                      <React.Fragment key={f.id}>
+                        <span className="folder-picker-crumb-sep">/</span>
+                        <button className="folder-picker-crumb" onClick={() => setBrowseFolderId(f.id)}>
+                          {f.name}
+                        </button>
+                      </React.Fragment>
+                    ))}
+                  </div>
+
+                  {browseSubfolders.map(folder => (
+                    <button
+                      key={folder.id}
+                      className="folder-picker-item"
+                      onClick={() => setBrowseFolderId(folder.id)}
+                    >
+                      <Folder size={13} /> {folder.name}
+                    </button>
+                  ))}
+                  {browseDocsHere.map(doc => (
+                    <button
+                      key={doc.id}
+                      className={`folder-picker-item${doc.id === docIdRef.current ? ' active' : ''}`}
+                      onClick={() => switchToDocument(doc.id)}
+                    >
+                      <FileText size={13} /> {doc.title || 'Untitled Document'}
+                      {doc.id === docIdRef.current && <span className="folder-picker-current">current</span>}
+                    </button>
+                  ))}
+                  {browseSubfolders.length === 0 && browseDocsHere.length === 0 && (
+                    <div className="folder-picker-empty">Empty</div>
+                  )}
+
+                  <button
+                    className="folder-picker-move-here"
+                    disabled={browseFolderId === currentFolderId}
+                    onClick={() => moveToFolder(browseFolderId)}
+                  >
+                    Move this document to {browseFolderName === '/' ? '/' : `"${browseFolderName}"`}
+                  </button>
+                </div>
+              );
+            })(),
+            document.body
+          )}
+
           {showTablePicker && tableButtonRef.current && createPortal(
             (() => {
               const rect = tableButtonRef.current.getBoundingClientRect();
@@ -921,13 +1247,12 @@ padding: '4px', minWidth: '196px',
                           className={`table-picker-cell${r < tableHover.rows && c < tableHover.cols ? ' hovered' : ''}`}
                           onMouseEnter={() => setTableHover({ rows: r + 1, cols: c + 1 })}
                           onClick={() => {
-                            editor.chain().focus().insertTable({
-                              rows: tableHover.rows,
-                              cols: tableHover.cols,
-                              withHeaderRow: true,
-                            }).run();
+                            const raw = defaultTableRaw(tableHover.rows, tableHover.cols);
+                            const pos = editor.state.selection.from;
+                            editor.chain().focus().insertLatexTable(raw).run();
                             setShowTablePicker(false);
                             setTableHover({ cols: 0, rows: 0 });
+                            setTableModal({ open: true, raw, getPos: () => pos });
                           }}
                         />
                       ))
@@ -942,6 +1267,32 @@ padding: '4px', minWidth: '196px',
               );
             })(),
             document.body
+          )}
+
+          {showOutline && (
+            <OutlineSidebar
+              headings={outlineHeadings}
+              onSelect={goToHeading}
+              onClose={() => setShowOutline(false)}
+            />
+          )}
+
+          {showVersions && (
+            <VersionHistorySidebar
+              versions={versions}
+              onRestore={restoreVersion}
+              onViewChanges={setDiffVersion}
+              onClose={() => setShowVersions(false)}
+            />
+          )}
+
+          {diffVersion && (
+            <VersionDiffView
+              version={diffVersion}
+              currentContent={{ ...editor.getJSON(), pageSettings: pageSettingsRef.current, commentThreads: commentThreadsRef.current }}
+              onRestore={restoreVersion}
+              onClose={() => setDiffVersion(null)}
+            />
           )}
 
           {showComments && (
@@ -972,6 +1323,11 @@ padding: '4px', minWidth: '196px',
       {showLoading && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999, transition: 'opacity 0.5s ease', opacity: fadeOut ? 0 : 1 }}>
           <LoadingScreen />
+        </div>
+      )}
+      {!showLoading && paginatingImport && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 99999 }}>
+          <LoadingScreen message="Laying out your document…" />
         </div>
       )}
     </>

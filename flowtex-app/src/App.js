@@ -11,8 +11,12 @@ import 'katex/dist/katex.min.css';
 function App() {
   const [session, setSession] = useState(undefined);
   const [showAuth, setShowAuth] = useState(false);
-  const [activeProduct, setActiveProduct] = useState(null);
+  const [initialDocId] = useState(() => new URLSearchParams(window.location.search).get('doc'));
+  const [activeProduct, setActiveProduct] = useState(() => (initialDocId ? 'flumenwrite' : null));
   const [activeDocument, setActiveDocument] = useState(null);
+
+  const openDoc = (doc) => { setActiveDocument(doc); window.history.pushState(null, '', `?doc=${doc.id}`); };
+  const closeDoc = () => { setActiveDocument(null); window.history.replaceState(null, '', window.location.pathname); };
 
   useEffect(() => {
     if (!supabase) {
@@ -44,9 +48,11 @@ function App() {
       return (
         <div className="App">
           <Editor
+            key={activeDocument.id}
             session={session}
             document={activeDocument}
-            onBack={() => setActiveDocument(null)}
+            onBack={closeDoc}
+            onOpenDocument={openDoc}
           />
         </div>
       );
@@ -55,8 +61,9 @@ function App() {
       <div className="App">
         <FlumenWriteDashboard
           session={session}
-          onOpenDocument={setActiveDocument}
+          onOpenDocument={openDoc}
           onBack={() => setActiveProduct(null)}
+          initialDocId={initialDocId}
         />
       </div>
     );
