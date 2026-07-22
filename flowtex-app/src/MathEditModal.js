@@ -140,8 +140,9 @@ const symbolGroups = [
 
 
 
-const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, isDisplay }) => {
+const MathEditModal = ({ initialLatex, initialNumbered, onUpdate, onClose, onComment, nodePos, isDisplay }) => {
   const [latex, setLatex] = useState(initialLatex || '');
+  const [numbered, setNumbered] = useState(!!initialNumbered);
   const [previewHtml, setPreviewHtml] = useState('');
   const [loading, setLoading] = useState(false);
   const textareaRef = useRef(null);
@@ -152,6 +153,10 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, is
   useEffect(() => {
     setLatex(initialLatex || '');
   }, [initialLatex]);
+
+  useEffect(() => {
+    setNumbered(!!initialNumbered);
+  }, [initialNumbered]);
   
   useEffect(() => {
     let cancelled = false;
@@ -259,7 +264,7 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, is
 
 
   const handleSave = () => {
-    onUpdate(latex);
+    onUpdate(latex, numbered);
     onClose();
   };
 
@@ -324,6 +329,17 @@ const MathEditModal = ({ initialLatex, onUpdate, onClose, onComment, nodePos, is
       </div>
       <div className="math-editor-body">
         <p className="math-hint">Type <code>\\</code> to autocomplete commands. Use <code>\\\\</code> for a new line.</p>
+
+        {isDisplay && (
+          <label className="math-numbered-toggle">
+            <input
+              type="checkbox"
+              checked={numbered}
+              onChange={(e) => setNumbered(e.target.checked)}
+            />
+            Numbered equation
+          </label>
+        )}
 
         {/* Editor textarea */}
         <div style={{ position: 'relative' }}>

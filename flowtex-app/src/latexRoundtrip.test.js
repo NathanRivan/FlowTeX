@@ -38,6 +38,26 @@ test('strikethrough and monospace commands import to marks', () => {
   expect(html).toContain('<code>code</code>');
 });
 
+test('\\begin{equation} imports as a numbered display-math div, equation* as unnumbered', () => {
+  const numbered = importLaTeX('\\begin{document}\\begin{equation}E=mc^2\\end{equation}\\end{document}');
+  expect(numbered).toContain('<div data-latex="E=mc^2" data-numbered="true"></div>');
+
+  const starred = importLaTeX('\\begin{document}\\begin{equation*}E=mc^2\\end{equation*}\\end{document}');
+  expect(starred).toContain('<div data-latex="E=mc^2"></div>');
+  expect(starred).not.toContain('data-numbered');
+});
+
+test('\\title and \\author import to front-matter paragraph nodes', () => {
+  const html = importLaTeX('\\begin{document}\\title{My Paper}\\author{Ada Lovelace}\\maketitle\\end{document}');
+  expect(html).toContain('<p data-type="doc-title">My Paper</p>');
+  expect(html).toContain('<p data-type="doc-author">Ada Lovelace</p>');
+});
+
+test('\\begin{abstract} imports to a doc-abstract div without a literal "Abstract:" label', () => {
+  const html = importLaTeX('\\begin{document}\\begin{abstract}This paper is about things.\\end{abstract}\\end{document}');
+  expect(html).toContain('<div data-type="doc-abstract">This paper is about things.</div>');
+});
+
 // Integration checks for the table import pipeline: importLaTeX runs several
 // other regex passes (math conversion, text formatting, comment stripping)
 // between preamble-stripping and paragraph-wrapping, so a table's raw source

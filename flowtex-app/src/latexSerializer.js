@@ -1,5 +1,8 @@
 // src/latexSerializer.js
 
+import { assignBibtexKeys } from './referenceBibtex';
+import { formatBibliographyEntry, sortReferences } from './citationFormat';
+
 function escapeLaTeX(text) {
   // Single pass: escaping backslashes first (as a separate .replace) would
   // inject literal `{}` characters that a later `{}`-escaping pass would
@@ -103,10 +106,39 @@ function renderInline(node) {
     return `$${node.attrs?.latex || ''}$`;
   } else if (node.type === 'hardBreak') {
     return '\\\\\n';
+  } else if (node.type === 'citation') {
+    const keys = (node.attrs?.refIds || []).map(id => citationKeyMap.get(id)).filter(Boolean);
+    return keys.length ? `\\cite{${keys.join(',')}}` : '';
   }
   // fallback: just return node text if any
   return '';
 }
+
+// Walks the raw JSON doc (generateLaTeX works from editor.getJSON(), not the
+// live PM doc) collecting every reference id any citation node points at.
+function collectCitationRefIds(node, ids = new Set()) {
+  if (!node) return ids;
+  if (node.type === 'citation') {
+    (node.attrs?.refIds || []).forEach(id => ids.add(id));
+  }
+  (node.content || []).forEach(child => collectCitationRefIds(child, ids));
+  return ids;
+}
+
+// Set once per generateLaTeX() call (same convention as hasDocAuthor below):
+// maps a reference id to its BibTeX key so \cite{} and \bibitem{} agree.
+let citationKeyMap = new Map();
+
+function docContainsType(node, typeName) {
+  if (!node) return false;
+  if (node.type === typeName) return true;
+  return (node.content || []).some(child => docContainsType(child, typeName));
+}
+
+// Set once per generateLaTeX() call, read by the docTitle case below: \maketitle
+// must come after both \title{} and \author{}, so whichever renders later
+// (docAuthor if present, else docTitle) is the one that emits it.
+let hasDocAuthor = false;
 
 // Process block nodes recursively
 function renderNode(node) {
@@ -162,7 +194,39 @@ function renderNode(node) {
       return `\\begin{quote}\n${(node.content || []).map(renderNode).join('\n\n')}\n\\end{quote}`;
 
     case 'katexDisplay':
-      return `\\[${node.attrs?.latex || ''}\\]`;
+      return node.attrs?.numbered
+        ? `\\begin{equation}\n${node.attrs?.latex || ''}\n\\end{equation}`
+        : `\\[${node.attrs?.latex || ''}\\]`;
+
+    case 'docTitle': {
+      const content = (node.content || []).map(renderInline).join('');
+      return `\\title{${content}}${hasDocAuthor ? '' : '\n\\maketitle'}`;
+    }
+
+    case 'docAuthor': {
+      const content = (node.content || []).map(renderInline).join('');
+      return `\\author{${content}}\n\\maketitle`;
+    }
+
+    case 'docAbstract':
+      return `\\begin{abstract}\n${(node.content || []).map(renderNode).join('\n\n')}\n\\end{abstract}`;
+
+    case 'docBibliography': {
+      // Inlined as \thebibliography rather than \bibliography{refs.bib} +
+      // bibtex/biber: the PDF export server (handleExportPDF in Editor.js)
+      // runs a single pdflatex pass with no bibtex step, so an external .bib
+      // reference would just render as "??". A separate, portable .bib file
+      // is still offered via the toolbar's "Export .bib" button for use in
+      // Overleaf/other tools — see referenceBibtex.js.
+      if (!citationKeyMap.size) return '';
+      const library = window.flumenwriteReferenceLibrary || new Map();
+      const refs = sortReferences([...citationKeyMap.keys()].map(id => library.get(id)).filter(Boolean));
+      if (!refs.length) return '';
+      const items = refs
+        .map(ref => `\\bibitem{${citationKeyMap.get(ref.id)}} ${escapeLaTeX(formatBibliographyEntry(ref))}`)
+        .join('\n');
+      return `\\begin{thebibliography}{99}\n${items}\n\\end{thebibliography}`;
+    }
 
     case 'latexTable':
       // The node's `raw` attribute is already valid, complete LaTeX source
@@ -191,6 +255,10 @@ function renderNode(node) {
 export function generateLaTeX(editor) {
   if (!editor) return '';
   const doc = editor.getJSON();
+  hasDocAuthor = docContainsType(doc, 'docAuthor');
+  const library = window.flumenwriteReferenceLibrary || new Map();
+  const citedRefs = [...collectCitationRefIds(doc)].map(id => library.get(id)).filter(Boolean);
+  citationKeyMap = assignBibtexKeys(citedRefs);
   return renderNode(doc);
 }
 

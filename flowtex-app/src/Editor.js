@@ -13,8 +13,10 @@ import { FontFamily } from '@tiptap/extension-font-family';
 import { Image } from '@tiptap/extension-image';
 import { KatexExtension } from './KatexExtension';
 import { KatexDisplayExtension } from './KatexDisplayExtension';
+import { EquationNumberingPlugin } from './EquationNumberingPlugin';
 import { MathInputPlugin } from './MathInputPlugin';
 import { SlashCommands } from './SlashCommands';
+import { DocTitle, DocAuthor, DocAbstract } from './FrontMatterNodes';
 import { generateLaTeX, buildFullLaTeX } from './latexSerializer';
 import './Editor.css';
 import { supabase } from './supabase';
@@ -28,6 +30,11 @@ import { parseMacros } from './macroExpander';
 import PreambleModal from './PreambleModal';
 import BibliographyModal from './BibliographyModal';
 import { CiteRefValidationPlugin } from './CiteRefValidationPlugin';
+import { CitationExtension } from './CitationExtension';
+import { DocBibliographyNode } from './DocBibliographyNode';
+import { useReferenceLibrary } from './useReferenceLibrary';
+import ReferenceSidebar from './ReferenceSidebar';
+import { referencesToBibFile } from './referenceBibtex';
 import ShareModal from './ShareModal';
 import PageSettingsModal, { DEFAULT_PAGE_SETTINGS, PAGE_SIZES } from './PageSettingsModal';
 import { CommentMark } from './CommentMark';
@@ -35,6 +42,11 @@ import CommentSidebar from './CommentSidebar';
 import OutlineSidebar from './OutlineSidebar';
 import VersionHistorySidebar from './VersionHistorySidebar';
 import VersionDiffView from './VersionDiffView';
+import { AiSuggestionExtension, aiSuggestionPluginKey } from './AiSuggestionExtension';
+import AiPanel from './AiPanel';
+import { requestAiAssist, AI_SCOPE_CHAR_LIMIT } from './aiAssistClient';
+import { getAiScope, getDocOrientation } from './aiScope';
+import { matchLibraryReference, lookupCrossRef } from './crossrefLookup';
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
@@ -42,8 +54,10 @@ import {
   Highlighter, ScissorsIcon, LayoutTemplate, Columns2,
   LayoutGrid, ChevronDown, Minus, Table as TableIcon, FileDown,
   History, List, Users, Folder, BookOpen,
+  Library, Download, Sparkles,
 } from 'lucide-react';
 import TemplatesMenu from './TemplatesMenu';
+import ThemeToggle from './ThemeToggle';
 import { TEMPLATES } from './templates';
 import LoadingScreen from './LoadingScreen';
 import MathLivePreview from './MathLivePreview';
@@ -117,7 +131,7 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
     show: false, x: 0, y: 0, hasSelection: false,
   });
   const [mathModal, setMathModal] = useState({
-    open: false, latex: '', nodePos: null,
+    open: false, latex: '', nodePos: null, numbered: false,
   });
   const [tableModal, setTableModal] = useState({
     open: false, raw: '', getPos: null,
@@ -248,6 +262,15 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   const [activeCommentId, setActiveCommentId] = useState(null);
   const [showComments, setShowComments] = useState(false);
   const [showOutline, setShowOutline] = useState(false);
+  const [showReferences, setShowReferences] = useState(false);
+  const [activeReferenceId, setActiveReferenceId] = useState(null);
+  const [showAiPanel, setShowAiPanel] = useState(false);
+  const [aiMessages, setAiMessages] = useState([]);
+  const [aiBusy, setAiBusy] = useState(false);
+  const {
+    references, online: referencesOnline,
+    addReference, updateReference, deleteReference,
+  } = useReferenceLibrary(session);
   const addCommentThread = (threadId, quote) => {
     setCommentThreads(prev => [...prev, {
       id: threadId, quote, text: '', replies: [],
@@ -275,6 +298,89 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
     dispatch(tr);
   };
 
+  // Sends exactly the current selection (or current paragraph) plus a short
+  // title/outline/abstract — never the full document. One request = at most
+  // one proposed action; a still-pending one is superseded, never chained.
+  const sendAiRequest = async (text) => {
+    if (!editor) return;
+    const scope = getAiScope(editor);
+    setAiMessages(prev => prev.map(m => (
+      m.role === 'assistant' && m.kind === 'action' && !m.resolved ? { ...m, resolved: 'superseded' } : m
+    )));
+    editor.commands.clearAiSuggestion();
+
+    if (!scope) {
+      setAiMessages(prev => [...prev, { role: 'user', text }, {
+        role: 'assistant', kind: 'error', text: 'Select some text (or place your cursor in a paragraph) first.',
+      }]);
+      return;
+    }
+    if (scope.text.length > AI_SCOPE_CHAR_LIMIT) {
+      setAiMessages(prev => [...prev, { role: 'user', text }, {
+        role: 'assistant', kind: 'error',
+        text: `Selection is too large (${scope.text.length} chars, max ${AI_SCOPE_CHAR_LIMIT}). Narrow it to roughly a paragraph.`,
+      }]);
+      return;
+    }
+
+    const orientation = getDocOrientation(editor.state.doc);
+    setAiMessages(prev => [...prev, { role: 'user', text, contextUsed: { scopeText: scope.text, orientation } }]);
+    setAiBusy(true);
+    const result = await requestAiAssist({ message: text, scopeText: scope.text, orientation });
+    setAiBusy(false);
+
+    if (result.type === 'error') {
+      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'error', text: result.text }]);
+      return;
+    }
+    if (result.type === 'message') {
+      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'text', text: result.text }]);
+      return;
+    }
+
+    if (result.action === 'propose_rewrite' || result.action === 'propose_delete') {
+      const kind = result.action === 'propose_rewrite' ? 'rewrite' : 'delete';
+      editor.commands.setAiSuggestion(scope.from, scope.to, kind, {
+        newText: result.payload.newText, reason: result.payload.reason,
+      });
+      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'action', action: result.action, reason: result.payload.reason }]);
+      return;
+    }
+
+    if (result.action === 'suggest_citation') {
+      const claimText = result.payload.claimText;
+      const libRef = matchLibraryReference(claimText, references);
+      const match = libRef
+        ? { source: 'library', ref: libRef }
+        : await lookupCrossRef(claimText).then(ref => (ref ? { source: 'crossref', ref } : null));
+      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'citation', claimText, match }]);
+    }
+  };
+
+  const acceptAiAction = (index) => {
+    if (!editor) return;
+    editor.commands.acceptAiSuggestion();
+    setAiMessages(prev => prev.map((m, i) => (i === index ? { ...m, resolved: 'accepted' } : m)));
+  };
+
+  const rejectAiAction = (index) => {
+    if (!editor) return;
+    editor.commands.clearAiSuggestion();
+    setAiMessages(prev => prev.map((m, i) => (i === index ? { ...m, resolved: 'rejected' } : m)));
+  };
+
+  const resolveAiCitation = (index, choice) => {
+    setAiMessages(prev => {
+      const msg = prev[index];
+      if (!msg || msg.resolved) return prev;
+      if (choice === 'insert' && msg.match) {
+        const row = msg.match.source === 'library' ? msg.match.ref : addReference(msg.match.ref);
+        if (row) editor.chain().focus().insertCitation([row.id]).run();
+      }
+      return prev.map((m, i) => (i === index ? { ...m, resolved: choice === 'insert' ? 'inserted' : 'dismissed' } : m));
+    });
+  };
+
   // ---- EDITOR CONFIG ----
   const editor = useEditor({
     extensions: [
@@ -292,14 +398,21 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
       FontSize,
       KatexExtension,
       KatexDisplayExtension,
+      EquationNumberingPlugin,
       MathInputPlugin,
       SlashCommands,
       PageBreak,
+      DocTitle,
+      DocAuthor,
+      DocAbstract,
+      CitationExtension,
+      DocBibliographyNode,
       CommentMark,
       Indent,
       ColumnSpan,
       LatexTableExtension,
       CiteRefValidationPlugin,
+      AiSuggestionExtension,
       // ponytail: pasted images are inlined as base64 (no upload server yet) —
       // move to Supabase Storage + a real src URL if documents start bloating.
       Image.configure({ allowBase64: true }),
@@ -398,13 +511,33 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   // Walk the doc for heading nodes each render — cheap for typical doc sizes
   // and always in sync, no separate state/effect to keep updated.
   const outlineHeadings = [];
+  const citedRefIds = new Set();
   if (editor) {
     editor.state.doc.descendants((node, pos) => {
       if (node.type.name === 'heading') {
         outlineHeadings.push({ pos, level: node.attrs.level, text: node.textContent });
+      } else if (node.type.name === 'citation') {
+        (node.attrs.refIds || []).forEach(id => citedRefIds.add(id));
       }
     });
   }
+
+  const handleExportBib = () => {
+    if (!editor) return;
+    const library = window.flumenwriteReferenceLibrary || new Map();
+    const refs = [...citedRefIds].map(id => library.get(id)).filter(Boolean);
+    if (!refs.length) { alert('No citations in this document yet.'); return; }
+    const blob = new Blob([referencesToBibFile(refs)], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    const safeTitle = (docTitle || 'document').replace(/[#%&\\/<>:"*?|]/g, '_').trim();
+    a.download = `${safeTitle}.bib`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+  };
 
   const goToHeading = (pos) => {
     if (!editor) return;
@@ -526,9 +659,9 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
 
   useEffect(() => {
     if (!editor) return;
-    window.flumenwriteMathEdit = (getPosFn, latex, isDisplay) => {
+    window.flumenwriteMathEdit = (getPosFn, latex, isDisplay, numbered) => {
       setShowComments(false);
-      setMathModal({ open: true, latex, getPos: getPosFn, isDisplay: !!isDisplay });
+      setMathModal({ open: true, latex, getPos: getPosFn, isDisplay: !!isDisplay, numbered: !!numbered });
     };
     return () => { delete window.flumenwriteMathEdit; };
   }, [editor]);
@@ -540,6 +673,16 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
       setTableModal({ open: true, raw, getPos: getPosFn });
     };
     return () => { delete window.flumenwriteTableEdit; };
+  }, [editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    window.flumenwriteCitationClick = (refIds) => {
+      setShowComments(false);
+      setShowReferences(true);
+      setActiveReferenceId(refIds?.[0] || null);
+    };
+    return () => { delete window.flumenwriteCitationClick; };
   }, [editor]);
 
 
@@ -856,6 +999,7 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
                   />
                 )}
               </div>
+              <ThemeToggle className="menubar-theme-toggle" />
             </div>
             <div className="toolbar">
               <div className="toolbar-inner">
@@ -952,6 +1096,7 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
                   <button onClick={handlePrintPDF} title="Print PDF"><Printer size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPreamble(true)} title="Preamble"><Wrench size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowBibliography(true)} title="Bibliography (.bib)"><BookOpen size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={handleExportBib} title="Export .bib (cited references, for Overleaf/BibTeX)"><Download size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => setShowPageSettings(true)} title="Page Settings"><LayoutTemplate size={16} /></button>
                   {pageSettings.columns === 2 && (
                     <button
@@ -1033,7 +1178,8 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
               <MathEditModal
                 isDisplay={mathModal.isDisplay}
                 initialLatex={mathModal.latex}
-                onUpdate={(newLatex) => {
+                initialNumbered={mathModal.numbered}
+                onUpdate={(newLatex, newNumbered) => {
                   if (editor && mathModal.getPos) {
                     const nodeTypeName = mathModal.isDisplay ? 'katexDisplay' : 'katex';
                     const pos = resolveNodePos(
@@ -1043,14 +1189,17 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
                       (attrs) => attrs.latex === mathModal.latex
                     );
                     if (pos !== null) {
+                      const attrs = mathModal.isDisplay
+                        ? { latex: newLatex, numbered: newNumbered }
+                        : { latex: newLatex };
                       editor.view.dispatch(
-                        editor.state.tr.setNodeMarkup(pos, null, { latex: newLatex })
+                        editor.state.tr.setNodeMarkup(pos, null, attrs)
                       );
                       SoundEngine.play('math.commit');
                     }
                   }
                 }}
-                onClose={() => setMathModal({ open: false, latex: '', nodePos: null })}
+                onClose={() => setMathModal({ open: false, latex: '', nodePos: null, numbered: false })}
                 onComment={handleMathComment}
                 nodePos={mathModal.nodePos}
               />
@@ -1210,6 +1359,20 @@ padding: '4px', minWidth: '196px',
             >
               <MessageSquare size={16} />
             </button>
+            <button
+              className={`floating-action-btn${showReferences ? ' active' : ''}`}
+              onClick={() => setShowReferences(prev => !prev)}
+              title={showReferences ? 'Hide References' : 'Show References'}
+            >
+              <Library size={16} />
+            </button>
+            <button
+              className={`floating-action-btn${showAiPanel ? ' active' : ''}`}
+              onClick={() => setShowAiPanel(prev => !prev)}
+              title={showAiPanel ? 'Hide AI Assistant' : 'Show AI Assistant'}
+            >
+              <Sparkles size={16} />
+            </button>
           </div>
 
           <MathLivePreview
@@ -1359,6 +1522,33 @@ padding: '4px', minWidth: '196px',
               onResolve={id => { removeCommentMark(id); setCommentThreads(prev => prev.map(t => t.id === id ? { ...t, resolved: true } : t)); }}
               onDelete={id => { removeCommentMark(id); setCommentThreads(prev => prev.filter(t => t.id !== id)); }}
               onClose={() => setShowComments(false)}
+            />
+          )}
+
+          {showReferences && (
+            <ReferenceSidebar
+              references={references}
+              citedIds={citedRefIds}
+              activeId={activeReferenceId}
+              online={referencesOnline}
+              onAdd={addReference}
+              onUpdate={updateReference}
+              onDelete={deleteReference}
+              onCite={id => editor.chain().focus().insertCitation([id]).run()}
+              onClose={() => setShowReferences(false)}
+            />
+          )}
+
+          {showAiPanel && (
+            <AiPanel
+              messages={aiMessages}
+              busy={aiBusy}
+              hasSuggestion={!!aiSuggestionPluginKey.getState(editor.state)?.suggestion}
+              onSend={sendAiRequest}
+              onAccept={acceptAiAction}
+              onReject={rejectAiAction}
+              onResolveCitation={resolveAiCitation}
+              onClose={() => setShowAiPanel(false)}
             />
           )}
         </>

@@ -18,6 +18,13 @@ export const KatexDisplayExtension = Node.create({
         parseHTML: element => element.getAttribute('data-display') === 'true',
         renderHTML: attributes => ({ 'data-display': attributes.display }),
       },
+      // Numbered = LaTeX's \begin{equation}, unnumbered = \[...\]. The number
+      // itself is never stored here — see EquationNumberingPlugin.
+      numbered: {
+        default: false,
+        parseHTML: element => element.getAttribute('data-numbered') === 'true',
+        renderHTML: attributes => ({ 'data-numbered': attributes.numbered ? 'true' : 'false' }),
+      },
     };
   },
 
@@ -25,7 +32,10 @@ export const KatexDisplayExtension = Node.create({
     return [
       {
         tag: 'div[data-latex]',
-        getAttrs: (dom) => ({ latex: dom.getAttribute('data-latex') }),
+        getAttrs: (dom) => ({
+          latex: dom.getAttribute('data-latex'),
+          numbered: dom.getAttribute('data-numbered') === 'true',
+        }),
       },
     ];
   },
@@ -44,6 +54,7 @@ export const KatexDisplayExtension = Node.create({
       dom.setAttribute('title', 'Click to edit math');
 
       const render = (attrs) => {
+        dom.setAttribute('data-numbered', attrs.numbered ? 'true' : 'false');
         try {
           dom.innerHTML = katex.renderToString(preprocessMathForDisplay(attrs.latex), {
             throwOnError: false,
@@ -85,7 +96,7 @@ export const KatexDisplayExtension = Node.create({
         if (typeof getPos === 'function' && window.flumenwriteMathEdit) {
           e.stopPropagation();
           // Pass a callback that returns the current position, not the position itself
-          window.flumenwriteMathEdit(() => getPos(), node.attrs.latex, true);
+          window.flumenwriteMathEdit(() => getPos(), node.attrs.latex, true, node.attrs.numbered);
         }
       });
 

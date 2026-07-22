@@ -47,7 +47,7 @@ const ShareModal = ({ docId, initialLinkShared, onClose }) => {
         </div>
         <div style={{ padding: '16px 20px', flex: 1, display: 'flex', flexDirection: 'column', gap: '16px', overflowY: 'auto' }}>
           <div>
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontFamily: '-apple-system, sans-serif', cursor: 'pointer', color: 'var(--text-primary)' }}>
               <input type="checkbox" checked={linkShared} onChange={toggleLinkShared} />
               Anyone with the link can edit
             </label>

@@ -10,6 +10,17 @@
       name="description"
       content="FlumenWrite - A modern document editor with rich text and LaTeX math support"
     />
+    <script>
+      (function () {
+        try {
+          var stored = localStorage.getItem('fw-theme');
+          var theme = stored === 'light' || stored === 'dark'
+            ? stored
+            : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+          document.documentElement.dataset.theme = theme;
+        } catch (e) {}
+      })();
+    </script>
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
     <!--
       manifest.json provides metadata used when your web app is installed on a

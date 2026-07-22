@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { supabase } from './supabase';
 import { TEMPLATES } from './templates';
 import { flattenFolders } from './folderUtils';
+import ThemeToggle from './ThemeToggle';
 import './FlumenWriteDashboard.css';
 
 const INITIAL_DOC = {
@@ -471,6 +472,7 @@ export default function FlumenWriteDashboard({ session, onOpenDocument, onBack, 
           <span className="fw-header-f">f</span>
           FlumenWrite
         </div>
+        <ThemeToggle className="fw-header-theme-toggle" />
         <div className="fw-header-user">{displayName}</div>
       </header>
 

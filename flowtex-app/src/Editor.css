@@ -19,6 +19,24 @@
   --menubar-height: 38px;
 }
 
+/* Chrome (menubar/toolbar/panels/modals) goes dark; the page itself
+   (.page-node / .page-content below) stays paper-white in both themes,
+   since it represents the printed output. */
+:root[data-theme="dark"] {
+  --bg: #1a1f2b;
+  --surface: #232937;
+  --border: #34405a;
+  --border-light: #2a3346;
+  --text-primary: #eef1f6;
+  --text-secondary: #9aa4b8;
+  --accent: #6ea8ff;
+  --accent-bg: rgba(110, 168, 255, 0.16);
+  --hover-bg: #2a3346;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,0.35);
+  --shadow-md: 0 4px 16px rgba(0,0,0,0.45);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.55);
+}
+
 * { box-sizing: border-box; }
 
 body {
@@ -59,6 +77,8 @@ body {
 }
 
 .menubar-menu-wrap { position: relative; }
+
+.menubar-theme-toggle { margin-left: auto; }
 
 .menubar-item {
   display: inline-flex;
@@ -389,7 +409,7 @@ body {
  */
 .page-node {
   width: var(--page-width, 8.5in);
-  background: white;
+  background: var(--surface);
   box-shadow: 0 2px 8px rgba(0,0,0,0.10), 0 8px 32px rgba(0,0,0,0.06);
   border-radius: 2px;
   margin: 0 auto 40px;
@@ -397,6 +417,7 @@ body {
 }
 
 .page-content {
+  color: var(--text-primary);
   padding: var(--page-margin-top, 1in) var(--page-margin-right, 1in) var(--page-margin-bottom, 1in) var(--page-margin-left, 1in);
   /* min-height fills to a full page: total page height minus top+bottom margins. */
   min-height: calc(var(--page-height, 11in) - var(--page-margin-top, 1in) - var(--page-margin-bottom, 1in));
@@ -500,6 +521,63 @@ body {
   color: #374151;
   font-style: italic;
   border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+}
+
+/* ===== FRONT MATTER (Title / Author / Abstract) ===== */
+.page-content .doc-title {
+  text-align: center;
+  font-size: 2em;
+  font-weight: 700;
+  margin: 0.3em 0 0.1em;
+}
+
+.page-content .doc-author {
+  text-align: center;
+  font-size: 1.1em;
+  color: var(--text-secondary);
+  margin: 0 0 1em;
+}
+
+/* Narrower, indented margins relative to normal body text — LaTeX's abstract
+   environment shrinks the text width on both sides. */
+.page-content .doc-abstract {
+  margin: 1.5em auto;
+  padding: 0 2em;
+  max-width: 80%;
+}
+
+.page-content .doc-abstract::before {
+  content: "Abstract";
+  display: block;
+  text-align: center;
+  font-weight: 700;
+  margin-bottom: 0.5em;
+}
+
+.page-content .doc-bibliography {
+  margin: 1.5em 0;
+}
+
+.page-content .doc-bibliography::before {
+  content: "References";
+  display: block;
+  font-weight: 700;
+  font-size: 1.1em;
+  margin-bottom: 0.5em;
+}
+
+.doc-bibliography-entry {
+  font-size: 0.95em;
+  line-height: 1.5;
+  margin: 0 0 0.6em;
+  padding-left: 1.5em;
+  text-indent: -1.5em;
+}
+
+.doc-bibliography-empty {
+  font-size: 0.9em;
+  color: var(--text-secondary);
+  font-style: italic;
 }
 
 /* ===== PAGE BREAK NODE ===== */
@@ -623,6 +701,9 @@ body {
 
 .diff-added { background: #d7f5dd; color: #14532d; text-decoration: none; }
 .diff-removed { background: #fde2e2; color: #7f1d1d; text-decoration: line-through; }
+
+:root[data-theme="dark"] .diff-added { background: rgba(46, 160, 67, 0.18); color: #7ee2a8; }
+:root[data-theme="dark"] .diff-removed { background: rgba(248, 81, 73, 0.16); color: #ffb4ab; }
 
 /* ===== VERSION HISTORY DAY GROUPS ===== */
 .version-day-group summary {
@@ -765,6 +846,15 @@ body {
   color: var(--error-color, #c0392b);
 }
 
+.math-numbered-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
 .math-textarea {
   width: 100%;
   font-family: 'SF Mono', 'Consolas', 'Monaco', 'Courier New', monospace;
@@ -775,13 +865,13 @@ body {
   border-radius: var(--radius-sm);
   resize: none;
   box-sizing: border-box;
-  background: #fafafa;
+  background: var(--border-light);
   color: var(--text-primary);
   transition: border-color 0.15s, background 0.15s;
   min-height: 120px;
 }
 
-.math-textarea:focus { outline: none; border-color: var(--accent); background: white; }
+.math-textarea:focus { outline: none; border-color: var(--accent); background: var(--surface); }
 
 .math-preview {
   padding: 10px 12px;
@@ -893,6 +983,22 @@ body {
 
 .katex-display-node .katex { display: block; font-size: 1.2em; }
 .katex-inline .katex { font-size: 1em; vertical-align: 0; display: inline-block; }
+
+/* Numbered display equations (LaTeX's \begin{equation}): span the full
+   width so the (n) marker can sit flush right, vertically centered. */
+.katex-display-node[data-numbered="true"] {
+  width: 100%;
+  box-sizing: border-box;
+  position: relative;
+  padding-right: 3em;
+}
+.katex-display-node[data-numbered="true"]::after {
+  content: "(" attr(data-eq-number) ")";
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+}
 
 /* ===== VALIDATION MARKERS (equation/table/citation checks) ===== */
 .katex-has-error, .latex-table-node--error {
@@ -1191,7 +1297,8 @@ body {
 
 /* ===== COMMENT SIDEBAR ===== */
 .comment-sidebar,
-.outline-sidebar {
+.outline-sidebar,
+.reference-sidebar {
   position: fixed;
   top: calc(var(--menubar-height) + var(--toolbar-height));
   width: 300px;
@@ -1353,8 +1460,8 @@ body {
   border-left: 3px solid transparent;
 }
 
-.comment-thread:hover { background: #fafafa; }
-.comment-thread.active { border-left-color: var(--accent); background: #f8faff; }
+.comment-thread:hover { background: var(--hover-bg); }
+.comment-thread.active { border-left-color: var(--accent); background: var(--accent-bg); }
 .comment-thread.resolved { opacity: 0.55; }
 
 /* ===== MATH LIVE PREVIEW OVERLAY ===== */
@@ -1835,6 +1942,97 @@ body {
 
 .comment-actions button:hover { color: var(--text-primary); }
 
+/* ===== REFERENCE SIDEBAR (extends .comment-sidebar above) ===== */
+.reference-offline-badge {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-secondary);
+  background: var(--hover-bg);
+  border-radius: var(--radius-sm);
+  padding: 1px 6px;
+  margin-left: 8px;
+  text-transform: uppercase;
+  vertical-align: middle;
+}
+
+.reference-search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border-light);
+  color: var(--text-secondary);
+  flex-shrink: 0;
+}
+
+.reference-search input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  font-size: 13px;
+  color: var(--text-primary);
+  outline: none;
+}
+
+.reference-form {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.reference-form input,
+.reference-form select {
+  padding: 6px 10px;
+  font-size: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text-primary);
+}
+
+.reference-form input:focus,
+.reference-form select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(26,115,232,0.12);
+}
+
+.reference-form-row { display: flex; gap: 6px; }
+.reference-form-row input { width: 70px; flex-shrink: 0; }
+.reference-form-row select { flex: 1; }
+
+.reference-form-actions { display: flex; gap: 8px; margin-top: 2px; }
+.reference-form-actions button {
+  padding: 5px 12px;
+  font-size: 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.reference-form-actions button:first-child { background: var(--accent); color: white; border-color: var(--accent); }
+
+.reference-item.cited { background: var(--accent-bg); }
+.reference-item .comment-actions button {
+  text-decoration: none;
+  display: flex;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+}
+.reference-item .comment-actions button:hover { background: var(--hover-bg); }
+
+.citation-inline {
+  color: var(--accent);
+  cursor: pointer;
+  border-radius: 2px;
+  padding: 0 1px;
+}
+.citation-inline:hover { background: var(--accent-bg); }
+.citation-missing { color: #c0392b; text-decoration: underline wavy #c0392b; }
+
 /* ===== FLOATING ACTION BUTTON ===== */
 .floating-right-actions {
   position: fixed;
@@ -1852,7 +2050,8 @@ body {
   box-shadow: var(--shadow-sm); cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   font-size: 17px;
-  transition: box-shadow 0.2s, transform 0.15s, background 0.15s;
+  color: var(--text-primary);
+  transition: box-shadow 0.2s, transform 0.15s, background 0.15s, color 0.15s;
 }
 
 .floating-action-btn:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.15); transform: scale(1.06); }
@@ -1884,7 +2083,7 @@ body {
 
 /* ===== TABLE PICKER ===== */
 .table-picker {
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
@@ -1930,7 +2129,7 @@ body {
 }
 
 .folder-picker-portal {
-  background: white;
+  background: var(--surface);
   border: 1px solid var(--border);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-md);
@@ -2074,6 +2273,65 @@ body {
   pointer-events: none;
 }
 
+/* ===== AI ASSISTANT PANEL (extends .comment-sidebar above) ===== */
+.ai-messages { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 10px; }
+
+.ai-message-text { font-size: 13px; line-height: 1.5; color: var(--text-primary); white-space: pre-wrap; }
+.ai-message-user .ai-message-text { color: var(--text-secondary); }
+.ai-message-error { color: #c0392b; }
+.ai-thinking { color: var(--text-secondary); font-style: italic; }
+
+.ai-context-used { margin-top: 4px; }
+.ai-context-toggle {
+  display: flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; color: var(--text-secondary); padding: 0;
+}
+.ai-context-chevron { transition: transform 0.12s; }
+.ai-context-chevron.open { transform: rotate(180deg); }
+.ai-context-detail {
+  margin-top: 6px; padding: 8px 10px;
+  background: var(--hover-bg); border-radius: var(--radius-sm);
+  font-size: 11.5px; line-height: 1.5; color: var(--text-secondary);
+}
+.ai-context-detail div + div { margin-top: 4px; }
+
+.ai-action-card {
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.ai-action-title { font-size: 12px; font-weight: 600; color: var(--text-primary); margin-bottom: 4px; }
+.ai-action-reason { font-size: 12.5px; color: var(--text-secondary); margin-bottom: 6px; }
+.ai-rejected-badge { font-size: 11px; color: var(--text-secondary); font-weight: 500; }
+
+.ai-input-row {
+  display: flex; gap: 6px;
+  padding: 10px 12px;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.ai-input-row input {
+  flex: 1; padding: 7px 10px; font-size: 13px;
+  border: 1px solid var(--border); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text-primary); outline: none;
+}
+.ai-input-row input:focus { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(26,115,232,0.12); }
+.ai-input-row button {
+  padding: 7px 14px; font-size: 13px; font-weight: 500;
+  border-radius: var(--radius-sm); border: 1px solid var(--accent);
+  background: var(--accent); color: white; cursor: pointer;
+}
+.ai-input-row button:disabled { opacity: 0.5; cursor: default; }
+
+/* In-document reviewable diff for a pending AI suggestion — pure decoration,
+   the real document is untouched until accepted. */
+.ai-suggestion-strike { background: #fde2e2; color: #7f1d1d; text-decoration: line-through; }
+.ai-suggestion-insert { background: #d7f5dd; color: #14532d; text-decoration: underline; }
+:root[data-theme="dark"] .ai-suggestion-strike { background: rgba(248, 81, 73, 0.16); color: #ffb4ab; }
+:root[data-theme="dark"] .ai-suggestion-insert { background: rgba(46, 160, 67, 0.18); color: #7ee2a8; }
+
 /* ===== PRINT STYLES ===== */
 @media print {
   @page { size: letter; margin: 0; }
@@ -2112,6 +2370,7 @@ body {
   .page-node:last-child { page-break-after: auto; }
 
   .page-content {
+    color: black;
     padding: var(--page-margin-top, 1in) var(--page-margin-right, 1in) var(--page-margin-bottom, 1in) var(--page-margin-left, 1in);
     min-height: 0;
   }

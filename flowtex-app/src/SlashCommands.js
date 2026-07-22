@@ -22,14 +22,6 @@ export const SlashCommands = Extension.create({
               action: 'heading2',
             },
             {
-              title: 'Bullet List',
-              action: 'bulletList',
-            },
-            {
-              title: 'Numbered List',
-              action: 'orderedList',
-            },
-            {
               title: 'Blockquote',
               action: 'blockquote',
             },
@@ -40,6 +32,22 @@ export const SlashCommands = Extension.create({
             {
               title: 'Page Break',
               action: 'pageBreak'
+            },
+            {
+              title: 'Title',
+              action: 'docTitle',
+            },
+            {
+              title: 'Author',
+              action: 'docAuthor',
+            },
+            {
+              title: 'Abstract',
+              action: 'docAbstract',
+            },
+            {
+              title: 'Bibliography',
+              action: 'docBibliography',
             },
           ];
           return allCommands.filter((item) =>
@@ -95,12 +103,6 @@ export const SlashCommands = Extension.create({
                 case 'heading2':
                   chain.setNode('heading', { level: 2 }).run();
                   break;
-                case 'bulletList':
-                  chain.toggleBulletList().run();
-                  break;
-                case 'orderedList':
-                  chain.toggleOrderedList().run();
-                  break;
                 case 'blockquote':
                   chain.setBlockquote().run();
                   break;
@@ -109,6 +111,18 @@ export const SlashCommands = Extension.create({
                   break;
                 case 'pageBreak':
                   savedEditor.chain().focus().deleteRange(from, to).insertPageBreak().run();
+                  break;
+                case 'docTitle':
+                  chain.setNode('docTitle').run();
+                  break;
+                case 'docAuthor':
+                  chain.setNode('docAuthor').run();
+                  break;
+                case 'docAbstract':
+                  chain.setDocAbstract().run();
+                  break;
+                case 'docBibliography':
+                  chain.insertDocBibliography().run();
                   break;
                 default:
                   break;

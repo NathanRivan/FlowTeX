@@ -2,17 +2,64 @@
 
 * { box-sizing: border-box; }
 
+/* Chrome (header, cards, menus, text) goes dark. Template/document/folder
+   thumbnails keep their fixed paper tone in both themes — they represent
+   the physical page, same as .page-node in the Editor. */
+.fw-dash {
+  --fw-bg: #f7f4ef;
+  --fw-surface: #ffffff;
+  --fw-surface-alt: #faf8f5;
+  --fw-border: rgba(44, 61, 84, 0.08);
+  --fw-border-strong: rgba(44, 61, 84, 0.22);
+  --fw-text: #1a2535;
+  --fw-text-secondary: #aaaaaa;
+  --fw-text-muted: #bbbbbb;
+  --fw-text-faint: #cccccc;
+  --fw-placeholder: #767676;
+  --fw-navy: #2c3d54;
+  --fw-navy-hover: #3a4f6e;
+  --fw-cream: #f0e6dc;
+  --fw-accent: #4285f4;
+  --fw-accent-bg: #e8f0fe;
+  --fw-warn: #cc9944;
+  --fw-warn-bg: rgba(204, 153, 68, 0.08);
+  --fw-shadow-card: 0 4px 14px rgba(44, 61, 84, 0.08);
+  --fw-shadow-menu: 0 8px 24px rgba(44, 61, 84, 0.16);
+}
+
+:root[data-theme="dark"] .fw-dash {
+  --fw-bg: #1a1f2b;
+  --fw-surface: #232937;
+  --fw-surface-alt: #2b3242;
+  --fw-border: rgba(255, 255, 255, 0.08);
+  --fw-border-strong: rgba(255, 255, 255, 0.2);
+  --fw-text: #eef1f6;
+  --fw-text-secondary: #9aa4b8;
+  --fw-text-muted: #909aad;
+  --fw-text-faint: #5c6579;
+  --fw-placeholder: #9aa4b8;
+  --fw-navy: #4a6690;
+  --fw-navy-hover: #3f5878;
+  --fw-cream: #f0e6dc;
+  --fw-accent: #6ea8ff;
+  --fw-accent-bg: rgba(110, 168, 255, 0.16);
+  --fw-warn: #e0a458;
+  --fw-warn-bg: rgba(224, 164, 88, 0.14);
+  --fw-shadow-card: 0 4px 14px rgba(0, 0, 0, 0.35);
+  --fw-shadow-menu: 0 8px 24px rgba(0, 0, 0, 0.5);
+}
+
 .fw-dash {
   min-height: 100vh;
-  background: #f7f4ef;
+  background: var(--fw-bg);
   display: flex;
   flex-direction: column;
 }
 
 /* ── HEADER ── */
 .fw-header {
-  background: #fff;
-  border-bottom: 1px solid rgba(44,61,84,0.08);
+  background: var(--fw-surface);
+  border-bottom: 1px solid var(--fw-border);
   height: 52px;
   display: flex;
   align-items: center;
@@ -20,6 +67,7 @@
   position: sticky;
   top: 0;
   z-index: 10;
+  transition: background-color 0.2s ease-out, border-color 0.2s ease-out;
 }
 
 .fw-back-btn {
@@ -28,7 +76,7 @@
   gap: 5px;
   font-size: 13px;
   font-weight: 500;
-  color: #aaa;
+  color: var(--fw-text-secondary);
   background: none;
   border: none;
   cursor: pointer;
@@ -37,7 +85,7 @@
   flex-shrink: 0;
 }
 
-.fw-back-btn:hover { color: #2c3d54; }
+.fw-back-btn:hover { color: var(--fw-navy); }
 
 .fw-header-brand {
   display: flex;
@@ -45,10 +93,10 @@
   gap: 7px;
   font-size: 14px;
   font-weight: 700;
-  color: #1a2535;
+  color: var(--fw-text);
   margin-left: 18px;
   padding-left: 18px;
-  border-left: 1px solid rgba(44,61,84,0.1);
+  border-left: 1px solid var(--fw-border);
   letter-spacing: -0.2px;
 }
 
@@ -56,13 +104,17 @@
   font-family: 'Playfair Display', Georgia, serif;
   font-style: italic;
   font-size: 17px;
-  color: #2c3d54;
+  color: var(--fw-navy);
+}
+
+.fw-header-theme-toggle {
+  margin-left: auto;
+  margin-right: 16px;
 }
 
 .fw-header-user {
-  margin-left: auto;
   font-size: 13px;
-  color: #bbb;
+  color: var(--fw-text-muted);
 }
 
 /* ── MAIN ── */
@@ -86,7 +138,7 @@
 .fw-welcome {
   font-size: 28px;
   font-weight: 400;
-  color: #1a2535;
+  color: var(--fw-text);
   letter-spacing: -0.6px;
   margin: 0;
 }
@@ -95,7 +147,7 @@
 
 .fw-welcome-sub {
   font-size: 14px;
-  color: #aaa;
+  color: var(--fw-text-secondary);
   margin: 5px 0 0;
 }
 
@@ -103,8 +155,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #2c3d54;
-  color: #f0e6dc;
+  background: var(--fw-navy);
+  color: var(--fw-cream);
   border: none;
   border-radius: 10px;
   padding: 11px 20px;
@@ -117,7 +169,7 @@
 }
 
 .fw-new-btn:hover {
-  background: #3a4f6e;
+  background: var(--fw-navy-hover);
   transform: translateY(-1px);
 }
 
@@ -132,9 +184,9 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #fff;
-  color: #2c3d54;
-  border: 1.5px solid rgba(44,61,84,0.14);
+  background: var(--fw-surface);
+  color: var(--fw-navy);
+  border: 1.5px solid var(--fw-border-strong);
   border-radius: 10px;
   padding: 10px 18px;
   font-size: 14px;
@@ -146,8 +198,8 @@
 }
 
 .fw-new-folder-btn:hover {
-  border-color: rgba(44,61,84,0.28);
-  background: #faf8f5;
+  border-color: var(--fw-navy);
+  background: var(--fw-surface-alt);
   transform: translateY(-1px);
 }
 
@@ -163,7 +215,7 @@
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #bbb;
+  color: var(--fw-text-muted);
   margin: 0;
 }
 
@@ -175,8 +227,8 @@
 }
 
 .fw-template-card {
-  background: #fff;
-  border: 1.5px solid rgba(44,61,84,0.08);
+  background: var(--fw-surface);
+  border: 1.5px solid var(--fw-border);
   border-radius: 12px;
   padding: 14px 14px 14px;
   display: flex;
@@ -188,12 +240,14 @@
 }
 
 .fw-template-card:hover {
-  border-color: rgba(44,61,84,0.2);
-  box-shadow: 0 4px 14px rgba(44,61,84,0.08);
+  border-color: var(--fw-border-strong);
+  box-shadow: var(--fw-shadow-card);
   transform: translateY(-2px);
 }
 
-/* ── TEMPLATE THUMBNAIL ── */
+/* ── TEMPLATE THUMBNAIL ──
+   Fixed paper tone in both themes — mirrors .page-node in the Editor,
+   since this mock-up represents a physical printed page. */
 .fw-tpl-thumb {
   background: #f0ebe2;
   border-radius: 6px;
@@ -276,13 +330,13 @@
 .fw-tpl-name {
   font-size: 12px;
   font-weight: 700;
-  color: #1a2535;
+  color: var(--fw-text);
   letter-spacing: -0.1px;
 }
 
 .fw-tpl-desc {
   font-size: 11px;
-  color: #bbb;
+  color: var(--fw-text-muted);
   line-height: 1.5;
   text-align: left;
 }
@@ -299,20 +353,20 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  background: #fff;
-  border: 1.5px solid rgba(44,61,84,0.1);
+  background: var(--fw-surface);
+  border: 1.5px solid var(--fw-border-strong);
   border-radius: 8px;
   padding: 5px 10px;
-  transition: border-color 0.15s, box-shadow 0.15s;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.2s ease-out;
 }
 
 .fw-search-wrap:focus-within {
-  border-color: rgba(44,61,84,0.3);
-  box-shadow: 0 0 0 3px rgba(44,61,84,0.06);
+  border-color: var(--fw-navy);
+  box-shadow: 0 0 0 3px var(--fw-accent-bg);
 }
 
 .fw-search-icon {
-  color: #bbb;
+  color: var(--fw-text-muted);
   flex-shrink: 0;
 }
 
@@ -321,17 +375,17 @@
   outline: none;
   background: transparent;
   font-size: 13px;
-  color: #1a2535;
+  color: var(--fw-text);
   width: 190px;
 }
 
-.fw-search::placeholder { color: #ccc; }
+.fw-search::placeholder { color: var(--fw-placeholder); }
 
 .fw-search-clear {
   background: none;
   border: none;
   cursor: pointer;
-  color: #bbb;
+  color: var(--fw-text-muted);
   padding: 0;
   display: flex;
   align-items: center;
@@ -339,7 +393,7 @@
   flex-shrink: 0;
 }
 
-.fw-search-clear:hover { color: #888; }
+.fw-search-clear:hover { color: var(--fw-text); }
 
 /* ── DOCUMENT CARD GRID ── */
 .fw-doc-grid {
@@ -349,8 +403,8 @@
 }
 
 .fw-doc-card {
-  background: #fff;
-  border: 1.5px solid rgba(44,61,84,0.07);
+  background: var(--fw-surface);
+  border: 1.5px solid var(--fw-border);
   border-radius: 12px;
   padding: 12px 12px 14px;
   cursor: pointer;
@@ -362,14 +416,15 @@
 }
 
 .fw-doc-card:hover {
-  border-color: rgba(44,61,84,0.16);
-  box-shadow: 0 4px 16px rgba(44,61,84,0.09);
+  border-color: var(--fw-border-strong);
+  box-shadow: var(--fw-shadow-card);
   transform: translateY(-2px);
 }
 
 .fw-doc-card:hover .fw-card-actions { opacity: 1; }
 
-/* ── PAGE THUMBNAIL ── */
+/* ── PAGE THUMBNAIL ──
+   Fixed paper tone in both themes (see .fw-tpl-thumb note above). */
 .fw-doc-page-thumb {
   width: 100%;
   /* padding-top trick: 11/8.5 * 100 = 129.41% gives exact letter-paper ratio */
@@ -427,7 +482,7 @@
 .fw-doc-card-title {
   font-size: 13px;
   font-weight: 600;
-  color: #1a2535;
+  color: var(--fw-text);
   margin: 0 0 3px;
   white-space: nowrap;
   overflow: hidden;
@@ -437,8 +492,8 @@
 .fw-doc-shared-pill {
   font-size: 10px;
   font-weight: 600;
-  color: #4285f4;
-  background: #e8f0fe;
+  color: var(--fw-accent);
+  background: var(--fw-accent-bg);
   border-radius: 10px;
   padding: 1px 7px;
   margin-left: 6px;
@@ -447,7 +502,7 @@
 
 .fw-doc-card-date {
   font-size: 11px;
-  color: #bbb;
+  color: var(--fw-text-muted);
   margin: 0;
 }
 
@@ -466,27 +521,27 @@
 .fw-card-actions--open { opacity: 1; }
 
 .fw-card-action-btn {
-  background: #fff;
-  border: 1px solid rgba(44,61,84,0.1);
+  background: var(--fw-surface);
+  border: 1px solid var(--fw-border-strong);
   border-radius: 6px;
   cursor: pointer;
-  color: #bbb;
+  color: var(--fw-text-muted);
   padding: 5px;
   display: flex;
   align-items: center;
   justify-content: center;
   transition: color 0.12s, background 0.12s;
-  box-shadow: 0 1px 4px rgba(44,61,84,0.08);
+  box-shadow: var(--fw-shadow-card);
 }
 
 .fw-card-action-btn:hover {
-  color: #2c3d54;
-  background: #faf8f5;
+  color: var(--fw-navy);
+  background: var(--fw-surface-alt);
 }
 
 .fw-card-action-del:hover {
-  color: #c94;
-  background: rgba(204,153,68,0.08);
+  color: var(--fw-warn);
+  background: var(--fw-warn-bg);
 }
 
 /* ── BREADCRUMBS ── */
@@ -502,7 +557,7 @@
   background: none;
   border: none;
   cursor: pointer;
-  color: #bbb;
+  color: var(--fw-text-muted);
   font-size: 13px;
   font-weight: 500;
   padding: 2px 3px;
@@ -510,23 +565,22 @@
   transition: color 0.12s;
 }
 
-.fw-breadcrumb-item:hover { color: #2c3d54; }
+.fw-breadcrumb-item:hover { color: var(--fw-navy); }
 
 .fw-breadcrumb-sep {
-  color: #ccc;
+  color: var(--fw-text-faint);
   flex-shrink: 0;
 }
 
 .fw-breadcrumb-current {
-  color: #1a2535;
+  color: var(--fw-text);
   font-weight: 600;
   padding: 2px 3px;
 }
 
-/* ── FOLDER CARD ── */
-/* .fw-doc-page-thumb is a zero-height box (its aspect ratio comes entirely from
-   padding-top); content must be position:absolute to escape that, same as
-   .fw-doc-thumb-text / .fw-doc-thumb-empty. */
+/* ── FOLDER CARD ──
+   Fixed paper tone in both themes (see .fw-tpl-thumb note above); the icon
+   drawn on top of it stays fixed too so it keeps contrast against that bg. */
 .fw-folder-thumb {
   position: absolute;
   inset: 0;
@@ -543,9 +597,9 @@
 .fw-folder-rename-input {
   font-size: 13px;
   font-weight: 600;
-  color: #1a2535;
-  background: #fff;
-  border: 1.5px solid rgba(44,61,84,0.3);
+  color: var(--fw-text);
+  background: var(--fw-surface);
+  border: 1.5px solid var(--fw-navy);
   border-radius: 6px;
   padding: 2px 6px;
   margin: 0 0 3px;
@@ -565,10 +619,10 @@
 
 .fw-move-menu {
   position: fixed;
-  background: #fff;
-  border: 1px solid rgba(44,61,84,0.1);
+  background: var(--fw-surface);
+  border: 1px solid var(--fw-border-strong);
   border-radius: 10px;
-  box-shadow: 0 8px 24px rgba(44,61,84,0.16);
+  box-shadow: var(--fw-shadow-menu);
   padding: 6px;
   min-width: 160px;
   max-height: 240px;
@@ -584,7 +638,7 @@
   border: none;
   text-align: left;
   font-size: 13px;
-  color: #1a2535;
+  color: var(--fw-text);
   padding: 7px 10px;
   border-radius: 6px;
   cursor: pointer;
@@ -594,10 +648,10 @@
   transition: background 0.1s;
 }
 
-.fw-move-menu-item:hover { background: #f7f4ef; }
+.fw-move-menu-item:hover { background: var(--fw-bg); }
 
 .fw-move-menu-item:disabled {
-  color: #ccc;
+  color: var(--fw-text-faint);
   cursor: default;
 }
 
@@ -605,6 +659,6 @@
 
 .fw-empty {
   font-size: 14px;
-  color: #bbb;
+  color: var(--fw-text-muted);
   margin: 0;
 }

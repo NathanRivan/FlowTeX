@@ -147,6 +147,16 @@ export function importLaTeX(latex) {
     `<div data-latex="${escapeAttr(math.trim())}"></div>`
   );
 
+  // 3b. Numbered display math \begin{equation}...\end{equation} → same,
+  // flagged numbered so it round-trips back to \begin{equation}. The starred
+  // variant is unnumbered, same as \[...\].
+  html = html.replace(/\\begin\{equation\}([\s\S]*?)\\end\{equation\}/g, (_, math) =>
+    `<div data-latex="${escapeAttr(math.trim())}" data-numbered="true"></div>`
+  );
+  html = html.replace(/\\begin\{equation\*\}([\s\S]*?)\\end\{equation\*\}/g, (_, math) =>
+    `<div data-latex="${escapeAttr(math.trim())}"></div>`
+  );
+
   // 4. Display math $$...$$ (if any) → same
   html = html.replace(/\$\$([^$]+?)\$\$/g, (_, math) =>
     `<div data-latex="${escapeAttr(math.trim())}"></div>`
@@ -168,6 +178,8 @@ export function importLaTeX(latex) {
   html = replaceBalanced(html, 'section', inner => `<h1>${inner}</h1>`);
   html = replaceBalanced(html, 'subsection', inner => `<h2>${inner}</h2>`);
   html = replaceBalanced(html, 'subsubsection', inner => `<h3>${inner}</h3>`);
+  html = replaceBalanced(html, 'title', inner => `<p data-type="doc-title">${inner}</p>`);
+  html = replaceBalanced(html, 'author', inner => `<p data-type="doc-author">${inner}</p>`);
 
   // 8. Text formatting
   html = replaceBalanced(html, 'textbf', inner => `<strong>${inner}</strong>`);
@@ -210,10 +222,12 @@ export function importLaTeX(latex) {
     });
   });
   
-  // 11b. Abstract environment – keep content with a bold label
+  // 11b. Abstract environment — the "Abstract" label is rendered by CSS
+  // (::before on .doc-abstract), same as LaTeX auto-generates it, so only
+  // the body content is kept here.
   html = html.replace(
     /\\begin\{abstract\}([\s\S]*?)\\end\{abstract\}/g,
-    (_, content) => `<p><strong>Abstract:</strong> ${content.trim()}</p>`
+    (_, content) => `<div data-type="doc-abstract">${content.trim()}</div>`
   );
 
   // 12. Cross‑references that remain outside theorems
