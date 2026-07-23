@@ -4,29 +4,6 @@ import katex from 'katex';
 import 'katex/dist/katex.min.css';
 import './LandingPage.css';
 
-/* ── Motion helpers ── */
-
-const fadeInUp = {
-  hidden: { opacity: 0, y: 30 },
-  visible: (i = 0) => ({
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      ease: [0.25, 0.1, 0.25, 1],
-      delay: i * 0.08,
-    },
-  }),
-};
-
-const staggerContainer = {
-  hidden: { opacity: 0 },
-  visible: {
-    opacity: 1,
-    transition: { staggerChildren: 0.1, delayChildren: 0.15 },
-  },
-};
-
 function InViewSection({ children, className, delay = 0, ...rest }) {
   const ref = useRef(null);
   const isInView = useInView(ref, { once: true, margin: '-80px' });
@@ -70,9 +47,9 @@ function HeroSection({ onGetStarted }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
         >
-          Software for the
+          Software for
           <br />
-          <span className="landing-hero-emphasis">long session.</span>
+          <span className="landing-hero-emphasis">writing math.</span>
         </motion.h1>
         <motion.p
           className="landing-hero-subtitle"
@@ -110,64 +87,6 @@ function HeroSection({ onGetStarted }) {
         </motion.p>
       </div>
     </section>
-  );
-}
-
-/* ── Products ── */
-
-const products = [
-  {
-    id: 'flumenwrite',
-    name: 'FlumenWrite',
-    icon: 'f',
-    desc: 'A document editor built for deep work — rich text, LaTeX math, and elegant typesetting in one place.',
-    available: true,
-  },
-  {
-    id: 'soon-2',
-    name: 'Coming Soon',
-    icon: '“',
-    desc: '',
-    available: false,
-  },
-];
-
-function ProductsSection({ onGetStarted }) {
-  return (
-    <InViewSection className="landing-products" id="products">
-      <div className="landing-section-header">
-        <p className="landing-eyebrow">What we build</p>
-        <h2 className="landing-section-title">Our products</h2>
-      </div>
-      <motion.div
-        className="landing-products-grid"
-        variants={staggerContainer}
-        initial="hidden"
-        whileInView="visible"
-        viewport={{ once: true, margin: '-60px' }}
-      >
-        {products.map((p, i) => (
-          <motion.div
-            key={p.id}
-            className={`landing-product-card ${p.available ? 'available clickable' : ''}`}
-            variants={fadeInUp}
-            custom={i}
-            whileHover={p.available ? { y: -4, boxShadow: '0 12px 40px rgba(0,0,0,0.08)' } : {}}
-            onClick={p.available ? onGetStarted : undefined}
-            tabIndex={p.available ? 0 : -1}
-            role={p.available ? 'button' : undefined}
-            onKeyDown={p.available ? (e) => { if (e.key === 'Enter') onGetStarted(); } : undefined}
-          >
-            <div className="landing-product-icon">{p.icon}</div>
-            <h3 className="landing-product-name">{p.name}</h3>
-            <p className="landing-product-desc">{p.desc}</p>
-            <span className={`landing-product-badge ${p.available ? 'live' : 'soon'}`}>
-              {p.available ? 'Available now' : 'Coming soon'}
-            </span>
-          </motion.div>
-        ))}
-      </motion.div>
-    </InViewSection>
   );
 }
 
@@ -389,31 +308,11 @@ function Navbar({ onGetStarted }) {
           <span className={`landing-hamburger ${menuOpen ? 'open' : ''}`} />
         </button>
         <nav className={`landing-nav ${menuOpen ? 'open' : ''}`}>
-          <button className="landing-nav-link" onClick={() => scrollTo('products')}>Products</button>
           <button className="landing-nav-link" onClick={() => scrollTo('demo')}>Demo</button>
           <button className="landing-nav-cta" onClick={onGetStarted}>Sign in</button>
         </nav>
       </div>
     </motion.header>
-  );
-}
-
-/* ── Footer ── */
-
-function Footer() {
-  return (
-    <motion.footer
-      className="landing-footer"
-      initial={{ opacity: 0 }}
-      whileInView={{ opacity: 1 }}
-      viewport={{ once: true }}
-      transition={{ duration: 0.4 }}
-    >
-      <div className="landing-footer-inner">
-        <span className="landing-footer-logo">FlumenWorks</span>
-        <p className="landing-footer-copy">&copy; {new Date().getFullYear()} FlumenWorks. All rights reserved.</p>
-      </div>
-    </motion.footer>
   );
 }
 
@@ -425,11 +324,9 @@ export default function LandingPage({ onGetStarted }) {
       <Navbar onGetStarted={onGetStarted} />
       <main>
         <HeroSection onGetStarted={onGetStarted} />
-        <ProductsSection onGetStarted={onGetStarted} />
         <DemoSection onGetStarted={onGetStarted} />
         <CTASection onGetStarted={onGetStarted} />
       </main>
-      <Footer />
     </div>
   );
 }
