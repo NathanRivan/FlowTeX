@@ -42,7 +42,6 @@ import CommentSidebar from './CommentSidebar';
 import OutlineSidebar from './OutlineSidebar';
 import VersionHistorySidebar from './VersionHistorySidebar';
 import VersionDiffView from './VersionDiffView';
-import { matchLibraryReference, lookupCrossRef } from './crossrefLookup';
 import {
   Bold, Italic, Underline, Strikethrough,
   AlignLeft, AlignCenter, AlignRight, AlignJustify,
