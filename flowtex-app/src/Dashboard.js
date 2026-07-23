@@ -56,94 +56,6 @@ function HomeView({ onLaunch }) {
   );
 }
 
-function AboutView() {
-  return (
-    <div className="dash-view">
-      <div className="dash-view-header">
-        <p className="dash-view-eyebrow">Who we are</p>
-        <h1 className="dash-view-title">About FlumenWorks</h1>
-      </div>
-
-      <div className="dash-about-hero">
-        <p className="dash-about-mission">
-          "We build software for people who do serious intellectual work."
-        </p>
-      </div>
-
-      <div className="dash-about-body">
-        <div className="dash-about-block">
-          <h3 className="dash-about-block-title">What we believe</h3>
-          <p className="dash-about-block-text">
-            The tools you think with shape the quality of your thinking. Most software
-            is designed for speed of onboarding, not depth of use. FlumenWorks is different —
-            we build for the long session, the serious draft, the idea that needs room to breathe.
-          </p>
-        </div>
-
-        <div className="dash-about-block">
-          <h3 className="dash-about-block-title">What we're building</h3>
-          <p className="dash-about-block-text">
-            FlumenWorks is a suite of focused, opinionated tools for researchers, writers,
-            academics, and anyone who works with complex ideas. Each product does one thing
-            exceptionally well and integrates seamlessly with the rest of the ecosystem.
-          </p>
-        </div>
-
-        <div className="dash-about-pillars">
-          <div className="dash-pillar">
-            <span className="dash-pillar-icon">✦</span>
-            <span className="dash-pillar-label">Precision</span>
-            <p className="dash-pillar-desc">Every feature earns its place. No bloat, no noise.</p>
-          </div>
-          <div className="dash-pillar">
-            <span className="dash-pillar-icon">~</span>
-            <span className="dash-pillar-label">Flow</span>
-            <p className="dash-pillar-desc">Software that gets out of your way so ideas can move.</p>
-          </div>
-          <div className="dash-pillar">
-            <span className="dash-pillar-icon">∞</span>
-            <span className="dash-pillar-label">Depth</span>
-            <p className="dash-pillar-desc">Built for experts, not for onboarding screenshots.</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function FoundersView() {
-  const founders = [
-    {
-      name: 'Clement Rivan',
-      role: 'Founder & CEO',
-      initials: 'CR',
-      bio: 'Clement started FlumenWorks with a simple frustration: the tools for serious intellectual work were either too simple or too complex. FlumenWorks is his answer — software that respects the user\'s intelligence.',
-    },
-  ];
-
-  return (
-    <div className="dash-view">
-      <div className="dash-view-header">
-        <p className="dash-view-eyebrow">The people behind it</p>
-        <h1 className="dash-view-title">Founders</h1>
-      </div>
-
-      <div className="dash-founders">
-        {founders.map(f => (
-          <div key={f.name} className="dash-founder-card">
-            <div className="dash-founder-avatar">{f.initials}</div>
-            <div className="dash-founder-info">
-              <p className="dash-founder-name">{f.name}</p>
-              <p className="dash-founder-role">{f.role}</p>
-              <p className="dash-founder-bio">{f.bio}</p>
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 export default function Dashboard({ session, onLaunch }) {
   const [page, setPage] = useState('home');
 
@@ -166,8 +78,6 @@ export default function Dashboard({ session, onLaunch }) {
 
   const navItems = [
     { id: 'home',     label: 'Home' },
-    { id: 'about',    label: 'About Us' },
-    { id: 'founders', label: 'Founders' },
   ];
 
   return (
@@ -198,8 +108,6 @@ export default function Dashboard({ session, onLaunch }) {
       {/* ── MAIN ── */}
       <main className="dash-main">
         {page === 'home'     && <HomeView onLaunch={onLaunch} />}
-        {page === 'about'    && <AboutView />}
-        {page === 'founders' && <FoundersView />}
       </main>
 
     </div>

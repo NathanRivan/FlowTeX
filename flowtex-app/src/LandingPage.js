@@ -124,13 +124,6 @@ const products = [
     available: true,
   },
   {
-    id: 'soon-1',
-    name: 'Coming Soon',
-    icon: 'Φ',
-    desc: 'AI Native graphic and illustration editor. Made for those who appreciate visual beauty.',
-    available: false,
-  },
-  {
     id: 'soon-2',
     name: 'Coming Soon',
     icon: '“',
@@ -346,113 +339,6 @@ function DemoSection({ onGetStarted }) {
   );
 }
 
-/* ── About ── */
-
-const pillars = [
-  {
-    icon: '✦',
-    label: 'Precision',
-    desc: 'Every feature earns its place. No bloat, no noise.',
-  },
-  {
-    icon: '~',
-    label: 'Flow',
-    desc: 'Software that gets out of your way so ideas can move.',
-  },
-  {
-    icon: '∞',
-    label: 'Depth',
-    desc: 'Built for experts, not for onboarding screenshots.',
-  },
-];
-
-function AboutSection() {
-  return (
-    <InViewSection className="landing-about" id="about" delay={0.1}>
-      <div className="landing-about-body">
-        <div className="landing-section-header">
-          <p className="landing-eyebrow">Who we are</p>
-          <h2 className="landing-section-title">What we believe</h2>
-        </div>
-        <motion.p
-          className="landing-about-mission"
-          initial={{ opacity: 0, y: 20 }}
-          whileInView={{ opacity: 1, y: 0 }}
-          viewport={{ once: true }}
-          transition={{ duration: 0.5, delay: 0.15 }}
-        >
-          The tools you think with shape the quality of your thinking. Most software
-          is designed for speed of onboarding, not depth of use. FlumenWorks is different —
-          we build for the long session, the serious draft, the idea that needs room to breathe.
-        </motion.p>
-        <motion.div
-          className="landing-pillars"
-          variants={staggerContainer}
-          initial="hidden"
-          whileInView="visible"
-          viewport={{ once: true, margin: '-60px' }}
-        >
-          {pillars.map((p, i) => (
-            <motion.div
-              key={p.label}
-              className="landing-pillar"
-              variants={fadeInUp}
-              custom={i}
-              whileHover={{ y: -3, transition: { duration: 0.2 } }}
-            >
-              <span className="landing-pillar-icon">{p.icon}</span>
-              <span className="landing-pillar-label">{p.label}</span>
-              <p className="landing-pillar-desc">{p.desc}</p>
-            </motion.div>
-          ))}
-        </motion.div>
-      </div>
-    </InViewSection>
-  );
-}
-
-/* ── Founders ── */
-
-const founders = [
-  {
-    name: 'Clement Rivan',
-    role: 'Founder & CEO',
-    initials: 'CR',
-    bio: "Clement started FlumenWorks with a simple frustration: the tools for serious intellectual work were either too simple or too complex. FlumenWorks is his answer, a tool that respects the user's intelligence.",
-  },
-];
-
-function FoundersSection() {
-  return (
-    <InViewSection className="landing-founders" id="founders">
-      <div className="landing-section-header">
-        <p className="landing-eyebrow">The people</p>
-        <h2 className="landing-section-title">Founders</h2>
-      </div>
-      <div className="landing-founders-list">
-        {founders.map((f, i) => (
-          <motion.div
-            key={f.name}
-            className="landing-founder-card"
-            initial={{ opacity: 0, y: 30 }}
-            whileInView={{ opacity: 1, y: 0 }}
-            viewport={{ once: true }}
-            transition={{ duration: 0.5, delay: 0.2, ease: [0.25, 0.1, 0.25, 1] }}
-            whileHover={{ y: -2, boxShadow: '0 8px 30px rgba(0,0,0,0.06)' }}
-          >
-            <div className="landing-founder-avatar">{f.initials}</div>
-            <div className="landing-founder-info">
-              <h3 className="landing-founder-name">{f.name}</h3>
-              <p className="landing-founder-role">{f.role}</p>
-              <p className="landing-founder-bio">{f.bio}</p>
-            </div>
-          </motion.div>
-        ))}
-      </div>
-    </InViewSection>
-  );
-}
-
 /* ── CTA ── */
 
 function CTASection({ onGetStarted }) {
@@ -505,8 +391,6 @@ function Navbar({ onGetStarted }) {
         <nav className={`landing-nav ${menuOpen ? 'open' : ''}`}>
           <button className="landing-nav-link" onClick={() => scrollTo('products')}>Products</button>
           <button className="landing-nav-link" onClick={() => scrollTo('demo')}>Demo</button>
-          <button className="landing-nav-link" onClick={() => scrollTo('about')}>About</button>
-          <button className="landing-nav-link" onClick={() => scrollTo('founders')}>Founders</button>
           <button className="landing-nav-cta" onClick={onGetStarted}>Sign in</button>
         </nav>
       </div>
@@ -543,8 +427,6 @@ export default function LandingPage({ onGetStarted }) {
         <HeroSection onGetStarted={onGetStarted} />
         <ProductsSection onGetStarted={onGetStarted} />
         <DemoSection onGetStarted={onGetStarted} />
-        <AboutSection />
-        <FoundersSection />
         <CTASection onGetStarted={onGetStarted} />
       </main>
       <Footer />

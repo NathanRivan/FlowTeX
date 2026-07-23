@@ -42,10 +42,6 @@ import CommentSidebar from './CommentSidebar';
 import OutlineSidebar from './OutlineSidebar';
 import VersionHistorySidebar from './VersionHistorySidebar';
 import VersionDiffView from './VersionDiffView';
-import { AiSuggestionExtension, aiSuggestionPluginKey } from './AiSuggestionExtension';
-import AiPanel from './AiPanel';
-import { requestAiAssist, AI_SCOPE_CHAR_LIMIT } from './aiAssistClient';
-import { getAiScope, getDocOrientation } from './aiScope';
 import { matchLibraryReference, lookupCrossRef } from './crossrefLookup';
 import {
   Bold, Italic, Underline, Strikethrough,
@@ -54,7 +50,7 @@ import {
   Highlighter, ScissorsIcon, LayoutTemplate, Columns2,
   LayoutGrid, ChevronDown, Minus, Table as TableIcon, FileDown,
   History, List, Users, Folder, BookOpen,
-  Library, Download, Sparkles,
+  Library, Download,
 } from 'lucide-react';
 import TemplatesMenu from './TemplatesMenu';
 import ThemeToggle from './ThemeToggle';
@@ -264,9 +260,6 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   const [showOutline, setShowOutline] = useState(false);
   const [showReferences, setShowReferences] = useState(false);
   const [activeReferenceId, setActiveReferenceId] = useState(null);
-  const [showAiPanel, setShowAiPanel] = useState(false);
-  const [aiMessages, setAiMessages] = useState([]);
-  const [aiBusy, setAiBusy] = useState(false);
   const {
     references, online: referencesOnline,
     addReference, updateReference, deleteReference,
@@ -296,89 +289,6 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
       tr = tr.removeMark(from, to, state.schema.marks.comment.create({ commentId }));
     });
     dispatch(tr);
-  };
-
-  // Sends exactly the current selection (or current paragraph) plus a short
-  // title/outline/abstract — never the full document. One request = at most
-  // one proposed action; a still-pending one is superseded, never chained.
-  const sendAiRequest = async (text) => {
-    if (!editor) return;
-    const scope = getAiScope(editor);
-    setAiMessages(prev => prev.map(m => (
-      m.role === 'assistant' && m.kind === 'action' && !m.resolved ? { ...m, resolved: 'superseded' } : m
-    )));
-    editor.commands.clearAiSuggestion();
-
-    if (!scope) {
-      setAiMessages(prev => [...prev, { role: 'user', text }, {
-        role: 'assistant', kind: 'error', text: 'Select some text (or place your cursor in a paragraph) first.',
-      }]);
-      return;
-    }
-    if (scope.text.length > AI_SCOPE_CHAR_LIMIT) {
-      setAiMessages(prev => [...prev, { role: 'user', text }, {
-        role: 'assistant', kind: 'error',
-        text: `Selection is too large (${scope.text.length} chars, max ${AI_SCOPE_CHAR_LIMIT}). Narrow it to roughly a paragraph.`,
-      }]);
-      return;
-    }
-
-    const orientation = getDocOrientation(editor.state.doc);
-    setAiMessages(prev => [...prev, { role: 'user', text, contextUsed: { scopeText: scope.text, orientation } }]);
-    setAiBusy(true);
-    const result = await requestAiAssist({ message: text, scopeText: scope.text, orientation });
-    setAiBusy(false);
-
-    if (result.type === 'error') {
-      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'error', text: result.text }]);
-      return;
-    }
-    if (result.type === 'message') {
-      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'text', text: result.text }]);
-      return;
-    }
-
-    if (result.action === 'propose_rewrite' || result.action === 'propose_delete') {
-      const kind = result.action === 'propose_rewrite' ? 'rewrite' : 'delete';
-      editor.commands.setAiSuggestion(scope.from, scope.to, kind, {
-        newText: result.payload.newText, reason: result.payload.reason,
-      });
-      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'action', action: result.action, reason: result.payload.reason }]);
-      return;
-    }
-
-    if (result.action === 'suggest_citation') {
-      const claimText = result.payload.claimText;
-      const libRef = matchLibraryReference(claimText, references);
-      const match = libRef
-        ? { source: 'library', ref: libRef }
-        : await lookupCrossRef(claimText).then(ref => (ref ? { source: 'crossref', ref } : null));
-      setAiMessages(prev => [...prev, { role: 'assistant', kind: 'citation', claimText, match }]);
-    }
-  };
-
-  const acceptAiAction = (index) => {
-    if (!editor) return;
-    editor.commands.acceptAiSuggestion();
-    setAiMessages(prev => prev.map((m, i) => (i === index ? { ...m, resolved: 'accepted' } : m)));
-  };
-
-  const rejectAiAction = (index) => {
-    if (!editor) return;
-    editor.commands.clearAiSuggestion();
-    setAiMessages(prev => prev.map((m, i) => (i === index ? { ...m, resolved: 'rejected' } : m)));
-  };
-
-  const resolveAiCitation = (index, choice) => {
-    setAiMessages(prev => {
-      const msg = prev[index];
-      if (!msg || msg.resolved) return prev;
-      if (choice === 'insert' && msg.match) {
-        const row = msg.match.source === 'library' ? msg.match.ref : addReference(msg.match.ref);
-        if (row) editor.chain().focus().insertCitation([row.id]).run();
-      }
-      return prev.map((m, i) => (i === index ? { ...m, resolved: choice === 'insert' ? 'inserted' : 'dismissed' } : m));
-    });
   };
 
   // ---- EDITOR CONFIG ----
@@ -412,7 +322,7 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
       ColumnSpan,
       LatexTableExtension,
       CiteRefValidationPlugin,
-      AiSuggestionExtension,
+      // [WIP] AiSuggestionExtension,
       // ponytail: pasted images are inlined as base64 (no upload server yet) —
       // move to Supabase Storage + a real src URL if documents start bloating.
       Image.configure({ allowBase64: true }),
@@ -1366,13 +1276,6 @@ padding: '4px', minWidth: '196px',
             >
               <Library size={16} />
             </button>
-            <button
-              className={`floating-action-btn${showAiPanel ? ' active' : ''}`}
-              onClick={() => setShowAiPanel(prev => !prev)}
-              title={showAiPanel ? 'Hide AI Assistant' : 'Show AI Assistant'}
-            >
-              <Sparkles size={16} />
-            </button>
           </div>
 
           <MathLivePreview
@@ -1539,18 +1442,6 @@ padding: '4px', minWidth: '196px',
             />
           )}
 
-          {showAiPanel && (
-            <AiPanel
-              messages={aiMessages}
-              busy={aiBusy}
-              hasSuggestion={!!aiSuggestionPluginKey.getState(editor.state)?.suggestion}
-              onSend={sendAiRequest}
-              onAccept={acceptAiAction}
-              onReject={rejectAiAction}
-              onResolveCitation={resolveAiCitation}
-              onClose={() => setShowAiPanel(false)}
-            />
-          )}
         </>
       )}
       {pageIndicator.total > 1 && (
