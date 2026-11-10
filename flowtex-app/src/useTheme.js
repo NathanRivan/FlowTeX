@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from 'react';
+import { readPreference, writePreference } from './preferenceStorage';
 
 const STORAGE_KEY = 'fw-theme';
 
 export function getInitialTheme() {
-  const stored = localStorage.getItem(STORAGE_KEY);
+  const stored = readPreference(STORAGE_KEY);
   if (stored === 'light' || stored === 'dark') return stored;
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
@@ -15,7 +16,7 @@ export default function useTheme() {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    localStorage.setItem(STORAGE_KEY, theme);
+    writePreference(STORAGE_KEY, theme);
   }, [theme]);
 
   const toggleTheme = useCallback(() => {

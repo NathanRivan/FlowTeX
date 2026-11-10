@@ -24,6 +24,7 @@ import MathEditModal from './MathEditModal';
 import { PageBreak } from './PageBreak';
 import FontSizeControl from './FontSizeControl';
 import SoundEngine from './SoundEngine';
+import { readPreference } from './preferenceStorage';
 import { importLaTeX } from './latexImporter';
 import ImportLatexModal from './ImportLatexModal';
 import { parseMacros } from './macroExpander';
@@ -118,6 +119,7 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   const [latexCode, setLatexCode] = useState('');
   const [highlightColor, setHighlightColor] = useState('#ffff00');
   const [isEditorReady, setIsEditorReady] = useState(false);
+  const [loadError, setLoadError] = useState(null);
   const [minTimeReached, setMinTimeReached] = useState(false);
   const [showLoading, setShowLoading] = useState(true);
   const [fadeOut, setFadeOut] = useState(false);
@@ -213,8 +215,8 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
     docProp?.content?.pageSettings || docProp?.pageSettings || DEFAULT_PAGE_SETTINGS
   );
   const [soundSettings, setSoundSettings] = useState(() => ({
-    enabled: localStorage.getItem('flumenwrite.sfx.enabled') !== 'false',
-    volume:  Math.min(1, Math.max(0, parseFloat(localStorage.getItem('flumenwrite.sfx.volume') ?? '0.6') || 0.6)),
+    enabled: readPreference('flumenwrite.sfx.enabled') !== 'false',
+    volume:  Math.min(1, Math.max(0, parseFloat(readPreference('flumenwrite.sfx.volume') ?? '0.6') || 0.6)),
   }));
   const [docTitle, setDocTitle] = useState(docProp?.title || 'Untitled Document');
   const docIdRef = useRef(docProp?.id || null);
@@ -598,23 +600,39 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   // Load persisted Yjs state (if any), connect the realtime broadcast
   // channel, then seed the shared doc from the legacy JSON content only if
   // nobody (a snapshot or a peer who connected first) has written to it yet.
-  const collabReadyRef = useRef(false);
   const seededRef = useRef(false);
   useEffect(() => {
-    if (!editor || collabReadyRef.current) return;
-    collabReadyRef.current = true;
+    if (!editor) return;
+    let active = true;
     const provider = new SupabaseYjsProvider(supabase, docIdRef.current, ydocRef.current);
-    (async () => {
-      await provider.load();
-      provider.connect();
-      const isEmpty = ydocRef.current.getXmlFragment('default').length === 0;
-      if (isEmpty && !seededRef.current) {
-        seededRef.current = true;
-        editor.commands.setContent(docProp?.content || INITIAL_DOC);
+    const timeout = setTimeout(() => {
+      if (active) {
+        active = false;
+        setLoadError(new Error('The document took too long to load. Check your connection and try again.'));
       }
-      setIsEditorReady(true);
+    }, 15000);
+    (async () => {
+      try {
+        await provider.load();
+        if (!active || editor.isDestroyed) return;
+        provider.connect();
+        const isEmpty = ydocRef.current.getXmlFragment('default').length === 0;
+        if (isEmpty && !seededRef.current) {
+          editor.commands.setContent(docProp?.content || INITIAL_DOC);
+          seededRef.current = true;
+        }
+        setIsEditorReady(true);
+      } catch (error) {
+        if (active) setLoadError(error);
+      } finally {
+        clearTimeout(timeout);
+      }
     })();
-    return () => provider.destroy();
+    return () => {
+      active = false;
+      clearTimeout(timeout);
+      provider.destroy();
+    };
   }, [editor]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // ---- SOUND ENGINE ----
@@ -863,6 +881,7 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
   };
 
 
+  if (loadError) throw loadError;
   if (!editor) return <div>Loading…</div>;
 
   // ---- RENDER ----

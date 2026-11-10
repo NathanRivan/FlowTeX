@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import Editor from './Editor';
+import EditorErrorBoundary from './EditorErrorBoundary';
 import AuthPage from './AuthPage';
 import LandingPage from './LandingPage';
 import Dashboard from './Dashboard';
@@ -47,13 +48,14 @@ function App() {
     if (activeDocument !== null) {
       return (
         <div className="App">
-          <Editor
-            key={activeDocument.id}
-            session={session}
-            document={activeDocument}
-            onBack={closeDoc}
-            onOpenDocument={openDoc}
-          />
+          <EditorErrorBoundary key={activeDocument.id} onBack={closeDoc}>
+            <Editor
+              session={session}
+              document={activeDocument}
+              onBack={closeDoc}
+              onOpenDocument={openDoc}
+            />
+          </EditorErrorBoundary>
         </div>
       );
     }

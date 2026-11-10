@@ -1,3 +1,5 @@
+import { readPreference, writePreference } from './preferenceStorage';
+
 const LS_ENABLED = 'flumenwrite.sfx.enabled';
 const LS_VOLUME  = 'flumenwrite.sfx.volume';
 
@@ -18,9 +20,9 @@ export function init() {
   } catch {
     return; // Web Audio API unavailable — fail silently
   }
-  const se = localStorage.getItem(LS_ENABLED);
+  const se = readPreference(LS_ENABLED);
   if (se !== null) enabled = se !== 'false';
-  const sv = localStorage.getItem(LS_VOLUME);
+  const sv = readPreference(LS_VOLUME);
   if (sv !== null) volume = Math.min(1, Math.max(0, parseFloat(sv) || 0));
 }
 
@@ -221,12 +223,12 @@ const SoundEngine = {
 
   setEnabled(val) {
     enabled = !!val;
-    localStorage.setItem(LS_ENABLED, String(enabled));
+    writePreference(LS_ENABLED, String(enabled));
   },
 
   setVolume(val) {
     volume = Math.min(1, Math.max(0, val));
-    localStorage.setItem(LS_VOLUME, String(volume));
+    writePreference(LS_VOLUME, String(volume));
   },
 
   get isEnabled() { return enabled; },
