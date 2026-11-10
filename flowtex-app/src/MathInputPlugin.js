@@ -53,7 +53,7 @@ function findOpenMathZone(state) {
 }
 
 // Find a completed $..$ or $$...$$ around the cursor for node conversion.
-function findMathRange(state, pos) {
+export function findMathRange(state, pos) {
   const { doc } = state;
   const $pos = doc.resolve(pos);
   const block = $pos.node();
@@ -64,9 +64,14 @@ function findMathRange(state, pos) {
   const blockText = doc.textBetween(blockStart, blockEnd, '\n', '￼');
   const cursorOffset = pos - blockStart;
 
-  const regex = /(\$\$([^$]*?)\$\$)|(?<!\$)\$([^$]+?)\$(?!\$)/g;
+  const regex = /(\$\$([^$]*?)\$\$)|\$([^$]+?)\$(?!\$)/g;
   let match;
   while ((match = regex.exec(blockText)) !== null) {
+    // Check the preceding delimiter without lookbehind (Safari < 16.4).
+    if (!match[1] && blockText[match.index - 1] === '$') {
+      regex.lastIndex = match.index + 1;
+      continue;
+    }
     const matchStart = match.index;
     const matchEnd = match.index + match[0].length;
     if (cursorOffset >= matchStart && cursorOffset <= matchEnd) {
