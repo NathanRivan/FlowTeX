@@ -2,7 +2,7 @@ import React from 'react';
 
 const LoadingScreen = ({ message = 'Preparing your editor…' }) => {
   return (
-    <div style={{
+    <div role="status" aria-live="polite" style={{
       position: 'fixed',
       top: 0, left: 0, right: 0, bottom: 0,
       background: '#f0f2f5',

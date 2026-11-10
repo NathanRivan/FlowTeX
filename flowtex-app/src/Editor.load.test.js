@@ -106,3 +106,20 @@ test('a render failure shows recovery controls instead of a blank page', () => {
   expect(screen.getByRole('alert')).toHaveTextContent('Unexpected editor error');
   expect(screen.getByRole('button', { name: 'Back to documents' })).toBeInTheDocument();
 });
+
+test.each(['l', 'e', 'r', 'j'])('leaves the browser shortcut Cmd+%s available', async (key) => {
+  const { container } = render(<Editor document={{ id: 'test-doc', title: 'Saved document', content }} />);
+  await act(async () => {});
+  const editable = container.querySelector('[contenteditable="true"]');
+  const event = new KeyboardEvent('keydown', { key, metaKey: true, bubbles: true, cancelable: true });
+  fireEvent(editable, event);
+  expect(event.defaultPrevented).toBe(false);
+});
+
+test('uses the existing modified alignment shortcut', async () => {
+  const { container } = render(<Editor document={{ id: 'test-doc', title: 'Saved document', content }} />);
+  await act(async () => {});
+  const editable = container.querySelector('[contenteditable="true"]');
+  fireEvent.keyDown(editable, { key: 'E', code: 'KeyE', keyCode: 69, ctrlKey: true, shiftKey: true });
+  expect(container.querySelector('.page-content p')).toHaveStyle({ textAlign: 'center' });
+});

@@ -25,6 +25,7 @@ import { PageBreak } from './PageBreak';
 import FontSizeControl from './FontSizeControl';
 import SoundEngine from './SoundEngine';
 import { readPreference } from './preferenceStorage';
+import { formatShortcut } from './keyboardShortcuts';
 import { importLaTeX } from './latexImporter';
 import ImportLatexModal from './ImportLatexModal';
 import { parseMacros } from './macroExpander';
@@ -380,27 +381,9 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
           }
         }
 
-        if (!mod) return false;
-        switch (event.key) {
-          case 'l':
-            event.preventDefault();
-            editor.chain().focus().setTextAlign('left').run();
-            return true;
-          case 'e':
-            event.preventDefault();
-            editor.chain().focus().setTextAlign('center').run();
-            return true;
-          case 'r':
-            event.preventDefault();
-            editor.chain().focus().setTextAlign('right').run();
-            return true;
-          case 'j':
-            event.preventDefault();
-            editor.chain().focus().setTextAlign('justify').run();
-            return true;
-          default:
-            return false;
-        }
+        // TextAlign already handles Mod+Shift+L/E/R/J. Leave plain Cmd/Ctrl
+        // combinations to the browser (address bar, reload, downloads, etc.).
+        return false;
       },
       handlePaste: (view, event) => {
         const file = extractPastedImageFile(event.clipboardData);
@@ -933,9 +916,9 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
               <div className="toolbar-inner">
 
                 <div className="toolbar-group">
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'active' : ''} title="Bold (Ctrl+B)"><Bold size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'active' : ''} title="Italic (Ctrl+I)"><Italic size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} className={editor.isActive('underline') ? 'active' : ''} title="Underline (Ctrl+U)"><Underline size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleBold().run()} className={editor.isActive('bold') ? 'active' : ''} title={`Bold (${formatShortcut('Mod+B')})`}><Bold size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleItalic().run()} className={editor.isActive('italic') ? 'active' : ''} title={`Italic (${formatShortcut('Mod+I')})`}><Italic size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleUnderline().run()} className={editor.isActive('underline') ? 'active' : ''} title={`Underline (${formatShortcut('Mod+U')})`}><Underline size={16} /></button>
                   <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().toggleStrike().run()} className={editor.isActive('strike') ? 'active' : ''} title="Strikethrough"><Strikethrough size={16} /></button>
                 </div>
 
@@ -991,10 +974,10 @@ const Editor = ({ session, document: docProp, onBack, onOpenDocument }) => {
                 </div>
 
                 <div className="toolbar-group">
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()} title="Align left (Ctrl+L)"><AlignLeft size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()} title="Center (Ctrl+E)"><AlignCenter size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('right').run()} title="Align right (Ctrl+R)"><AlignRight size={16} /></button>
-                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('justify').run()} title="Justify (Ctrl+J)"><AlignJustify size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('left').run()} title={`Align left (${formatShortcut('Mod+Shift+L')})`}><AlignLeft size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('center').run()} title={`Center (${formatShortcut('Mod+Shift+E')})`}><AlignCenter size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('right').run()} title={`Align right (${formatShortcut('Mod+Shift+R')})`}><AlignRight size={16} /></button>
+                  <button onMouseDown={e => e.preventDefault()} onClick={() => editor.chain().focus().setTextAlign('justify').run()} title={`Justify (${formatShortcut('Mod+Shift+J')})`}><AlignJustify size={16} /></button>
                 </div>
 
                 <div className="toolbar-group">
@@ -1207,7 +1190,7 @@ padding: '4px', minWidth: '196px',
                   if (sel) navigator.clipboard.writeText(sel).then(() => editor.chain().focus().deleteSelection().run());
                   setContextMenu({ show: false, x: 0, y: 0, hasSelection: false });
                 }}>
-                  <span>Cut</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Ctrl+X</span>
+                  <span>Cut</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{formatShortcut('Mod+X')}</span>
                 </div>
                 <div className={`context-menu-item ${contextMenu.hasSelection ? '' : 'disabled'}`} onClick={(e) => {
                   e.stopPropagation();
@@ -1215,14 +1198,14 @@ padding: '4px', minWidth: '196px',
                   navigator.clipboard.writeText(window.getSelection().toString());
                   setContextMenu({ show: false, x: 0, y: 0, hasSelection: false });
                 }}>
-                  <span>Copy</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Ctrl+C</span>
+                  <span>Copy</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{formatShortcut('Mod+C')}</span>
                 </div>
                 <div className="context-menu-item" onClick={async (e) => {
                   e.stopPropagation();
                   try { const t = await navigator.clipboard.readText(); if (t) editor.chain().focus().insertContent(t).run(); } catch {}
                   setContextMenu({ show: false, x: 0, y: 0, hasSelection: false });
                 }}>
-                  <span>Paste</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Ctrl+V</span>
+                  <span>Paste</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{formatShortcut('Mod+V')}</span>
                 </div>
                 <div style={{ borderTop: '1px solid var(--border)', margin: '3px 0' }} />
                 <div className={`context-menu-item ${contextMenu.hasSelection ? '' : 'disabled'}`} onClick={(e) => {
@@ -1235,7 +1218,7 @@ padding: '4px', minWidth: '196px',
                   addCommentThread(commentId, state.doc.textBetween(from, to, ' '));
                   setContextMenu({ show: false, x: 0, y: 0, hasSelection: false });
                 }}>
-                  <span>Comment</span><span style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>Ctrl+Alt+M</span>
+                  <span>Comment</span>
                 </div>
               </div>
             )}
